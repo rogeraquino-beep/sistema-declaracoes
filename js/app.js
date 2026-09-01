@@ -142,6 +142,10 @@ const App = (() => {
     return text ? JSON.parse(text) : null;
   }
 
+  function generateId() {
+    return Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000);
+  }
+
   function fromDB(store, x) {
     if (!x) return x;
     if (store === "funcionarios") return { id: String(x.id), nome: x.nome_completo || x.nome, matricula: x.matricula, cargo: x.cargo_funcao || x.cargo, setor: x.setor, vinculo: x.tipo_vinculo || x.vinculo, dataAdmissao: x.data_admissao || x.dataAdmissao, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
@@ -154,7 +158,7 @@ const App = (() => {
     let payload = {};
     if (store === "funcionarios") {
       payload = { 
-        id: x.id ? String(x.id) : crypto.randomUUID(),
+        id: x.id ? Number(x.id) : generateId(),
         nome_completo: x.nome, 
         matricula: x.matricula, 
         cargo_funcao: x.cargo, 
@@ -170,8 +174,8 @@ const App = (() => {
     } 
     else if (store === "declaracoes") {
       payload = { 
-        id: x.id ? String(x.id) : crypto.randomUUID(),
-        funcionario_id: String(x.funcionarioId), 
+        id: x.id ? Number(x.id) : generateId(),
+        funcionario_id: Number(x.funcionarioId), 
         tipo: x.tipo, 
         data: x.data, 
         data_inicial: x.dataInicial || null, 
@@ -190,8 +194,8 @@ const App = (() => {
     } 
     else if (store === "faltas") {
       payload = { 
-        id: x.id ? String(x.id) : crypto.randomUUID(),
-        funcionario_id: String(x.funcionarioId), 
+        id: x.id ? Number(x.id) : generateId(),
+        funcionario_id: Number(x.funcionarioId), 
         data: x.data, 
         tipo: x.tipo || 'Falta', 
         justificativa: x.justificativa || null, 
@@ -200,7 +204,7 @@ const App = (() => {
     } 
     else {
       payload = { ...x };
-      if (!payload.id) payload.id = crypto.randomUUID();
+      if (!payload.id) payload.id = generateId();
     }
     return payload;
   }
