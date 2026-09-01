@@ -121,8 +121,11 @@ const FuncionarioPage = {
                 <input type="text" id="setor" class="input" value="${App.escapeHTML(funcionario.setor || "")}">
               </div>
               <div class="field">
-                <label for="vinculo">Vínculo</label>
-                <input type="text" id="vinculo" class="input" value="${App.escapeHTML(funcionario.vinculo || "")}">
+                <label for="vinculo">Vínculo *</label>
+                <select id="vinculo" class="input" required>
+                  <option value="Efetivo" ${funcionario.vinculo === "Efetivo" ? "selected" : ""}>Efetivo</option>
+                  <option value="Contratado" ${funcionario.vinculo === "Contratado" ? "selected" : ""}>Contratado</option>
+                </select>
               </div>
             </div>
 
@@ -199,8 +202,11 @@ const NovoFuncionarioPage = {
               <input type="text" id="setor" class="input" placeholder="Ex: Secretaria">
             </div>
             <div class="field">
-              <label for="vinculo">Vínculo</label>
-              <input type="text" id="vinculo" class="input" placeholder="Ex: Efetivo">
+              <label for="vinculo">Vínculo *</label>
+              <select id="vinculo" class="input" required>
+                <option value="Efetivo">Efetivo</option>
+                <option value="Contratado">Contratado</option>
+              </select>
             </div>
           </div>
 
