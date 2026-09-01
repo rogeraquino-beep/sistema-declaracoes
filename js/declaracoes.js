@@ -117,28 +117,22 @@ const NovaDeclaracaoPage = {
     try {
       const tipo = document.getElementById("tipo").value;
       const fileInput = document.getElementById("arquivo");
-      let fileData = null;
+      let fileData = {};
 
       if (fileInput.files && fileInput.files[0]) {
         const file = fileInput.files[0];
-        fileData = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve({
-            arquivo: reader.result,
-            nomeArquivo: file.name,
-            tipoArquivo: file.type,
-            tamanhoArquivo: file.size
-          });
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        fileData = {
+          nomeArquivo: file.name,
+          tipoArquivo: file.type,
+          tamanhoArquivo: file.size
+        };
       }
 
       const payload = {
         funcionarioId: document.getElementById("funcionarioId").value,
         tipo: tipo,
         observacoes: document.getElementById("observacoes").value,
-        ...(fileData || {})
+        ...fileData
       };
 
       if (tipo === "horas") {
