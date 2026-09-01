@@ -262,7 +262,8 @@ const App = (() => {
 
   return {
     escapeHTML, formatDate, getPageKey, layout, openModal, closeModal, toast,
-    add, put, get, getAll, remove, seedDemoData, counts
+    add, put, get, getAll, remove, seedDemoData, counts,
+    uid: () => generateId()
   };
 })();
 
