@@ -216,22 +216,16 @@ const NovaDeclaracaoPage = {
     const file=document.getElementById("arquivo").files[0];
     if(file && !["application/pdf","image/jpeg","image/png"].includes(file.type)){App.toast("Formato de arquivo não suportado.","warning");return;}
     let fileData=this.oldFile;
-    try {
-      if(file) {
-        const up=await App.uploadFile(file,"declaracoes");
-        if(this.oldFile?.arquivo) await App.deleteFileByUrl(this.oldFile.arquivo);
-        fileData={arquivo:up.url,nomeArquivo:up.name,tipoArquivo:up.type,tamanhoArquivo:up.size};
-      }
-    } catch(err) { console.error(err); App.toast("Erro ao enviar o arquivo.","danger"); return; }
+    if(file) fileData={arquivo:await App.fileToDataURL(file),nomeArquivo:file.name,tipoArquivo:file.type,tamanhoArquivo:file.size};
     const type=fd.get("tipo");
     const record={
-      id:this.editingId||null, funcionarioId:fd.get("funcionarioId"), tipo:type, data:fd.get("data"),
+      id:this.editingId||App.uid("dec"), funcionarioId:fd.get("funcionarioId"), tipo:type, data:fd.get("data"),
       dataInicial:type==="dias"?fd.get("dataInicial"):fd.get("data"), dataFinal:type==="dias"?fd.get("dataFinal"):fd.get("data"),
       horaInicial:type==="horas"?fd.get("horaInicial"):"", horaFinal:type==="horas"?fd.get("horaFinal"):"",
       quantidadeHoras:type==="horas"?Number(fd.get("quantidadeHoras")||0):0, quantidadeDias:type==="dias"?Number(fd.get("quantidadeDias")||0):0,
       observacoes:String(fd.get("observacoes")||"").trim(),
       arquivo:fileData?.arquivo||null, nomeArquivo:fileData?.nomeArquivo||"", tipoArquivo:fileData?.tipoArquivo||"", tamanhoArquivo:fileData?.tamanhoArquivo||0,
-      dataCadastro:new Date().toISOString()
+      dataCadastro:this.editingId?(await App.get("declaracoes",this.editingId))?.dataCadastro||new Date().toISOString():new Date().toISOString()
     };
     if(!record.funcionarioId || !record.data){App.toast("Preencha os campos obrigatórios.","warning");return;}
     // FUTURO: substituir IndexedDB por Supabase/API mantendo as mesmas funções de CRUD.

@@ -117,7 +117,7 @@ const NovoFuncionarioPage = {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const record = {
-      id: this.editingId || null,
+      id: this.editingId || App.uid("fun"),
       nome: String(fd.get("nome")||"").trim(),
       matricula: String(fd.get("matricula")||"").trim(),
       cargo: String(fd.get("cargo")||"").trim(),

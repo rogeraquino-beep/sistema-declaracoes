@@ -9,8 +9,8 @@ const App = (() => {
     { key: "funcionarios", href: "funcionarios.html", icon: "👥", label: "Funcionários" },
     { key: "declaracoes", href: "declaracoes.html", icon: "📄", label: "Declarações" },
     { key: "nova-declaracao", href: "nova-declaracao.html", icon: "＋", label: "Nova Declaração" },
-    { key: "faltas", href: "faltas.html", icon: "✖", label: "Faltas" },
     { key: "novo-funcionario", href: "novo-funcionario.html", icon: "＋", label: "Novo Funcionário" },
+    { key: "faltas", href: "faltas.html", icon: "📅", label: "Faltas" },
     { key: "relatorios", href: "relatorios.html", icon: "▥", label: "Relatórios" }
   ];
 
@@ -139,40 +139,34 @@ const App = (() => {
     setTimeout(() => item.remove(), 3200);
   }
 
-  // Supabase
+  // Supabase REST API
   const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
   const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
   const API = SUPABASE_URL + "/rest/v1";
-  const STORAGE = SUPABASE_URL + "/storage/v1";
-
   async function api(path, options={}) {
-    const res = await fetch(API + path, {
-      ...options,
-      headers:{apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, ...(options.headers||{})}
-    });
+    const res = await fetch(API + path, {headers:{apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json", ...(options.headers||{})}, ...options});
     if(!res.ok){ const t=await res.text(); throw new Error(t||"Erro no Supabase"); }
     const text=await res.text(); return text?JSON.parse(text):null;
   }
-
   function fromDB(store,x){
     if(!x) return x;
     if(store==="funcionarios") return {id:String(x.id),nome:x.nome_completo,matricula:x.matricula,cargo:x.cargo_funcao,setor:x.setor,vinculo:x.tipo_vinculo,dataAdmissao:x.data_admissao,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
-    if(store==="declaracoes") return {id:String(x.id),funcionarioId:String(x.funcionario_id),tipo:x.tipo,data:x.data,dataInicial:x.data_inicial||x.data_inicio||x.data,dataFinal:x.data_final||x.data_fim||x.data,horaInicial:x.hora_inicial,horaFinal:x.hora_final,quantidadeHoras:Number(x.quantidade_horas||0),quantidadeDias:Number(x.quantidade_dias||0),observacoes:x.observacoes||x.descricao||"",arquivo:x.arquivo_url||null,nomeArquivo:x.arquivo_nome||"",tipoArquivo:x.tipo_arquivo||"",tamanhoArquivo:Number(x.tamanho_arquivo||0)};
-    if(store==="faltas") return {id:String(x.id),funcionarioId:String(x.funcionario_id),dataFalta:x.data_falta||x.data_inicio,dataInicio:x.data_inicio||x.data_falta,dataFim:x.data_fim||x.data_falta,quantidadeDias:Number(x.quantidade_dias||1),motivo:x.motivo||"",justificativa:x.justificativa||"",observacoes:x.observacoes||"",status:x.status||"Não justificada",arquivo:x.arquivo_url||null,nomeArquivo:x.arquivo_nome||""};
+    if(store==="declaracoes") return {id:String(x.id),funcionarioId:String(x.funcionario_id),tipo:x.tipo,data:x.data,dataInicial:x.data_inicial,dataFinal:x.data_final,horaInicial:x.hora_inicial,horaFinal:x.hora_final,quantidadeHoras:x.quantidade_horas,quantidadeDias:x.quantidade_dias,observacoes:x.observacoes,arquivo:x.arquivo,nomeArquivo:x.nome_arquivo,tipoArquivo:x.tipo_arquivo,tamanhoArquivo:x.tamanho_arquivo,dataCadastro:x.data_cadastro};
+    if(store==="faltas") return {id:String(x.id),funcionarioId:String(x.funcionario_id),data:x.data,tipo:x.tipo,justificativa:x.justificativa,observacoes:x.observacoes,createdAt:x.created_at};
     return {...x,id:String(x.id)};
   }
   function toDB(store,x){
     if(store==="funcionarios") return {nome_completo:x.nome,matricula:x.matricula,cargo_funcao:x.cargo,setor:x.setor,tipo_vinculo:x.vinculo,data_admissao:x.dataAdmissao||null,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
-    if(store==="declaracoes") return {funcionario_id:Number(x.funcionarioId),tipo:x.tipo,data:x.data||null,data_inicio:x.dataInicial||null,data_fim:x.dataFinal||null,data_inicial:x.dataInicial||null,data_final:x.dataFinal||null,hora_inicial:x.horaInicial||null,hora_final:x.horaFinal||null,quantidade_horas:Number(x.quantidadeHoras||0),quantidade_dias:Number(x.quantidadeDias||0),observacoes:x.observacoes||null,descricao:x.observacoes||null,arquivo_url:x.arquivo||null,arquivo_nome:x.nomeArquivo||null};
-    if(store==="faltas") return {funcionario_id:Number(x.funcionarioId),data_falta:x.dataFalta||x.dataInicio,data_inicio:x.dataInicio||null,data_fim:x.dataFim||null,quantidade_dias:Number(x.quantidadeDias||1),motivo:x.motivo||null,justificativa:x.justificativa||null,observacoes:x.observacoes||null,status:x.status||"Não justificada",arquivo_url:x.arquivo||null,arquivo_nome:x.nomeArquivo||null};
+    if(store==="declaracoes") return {funcionario_id:x.funcionarioId,tipo:x.tipo,data:x.data,data_inicial:x.dataInicial||null,data_final:x.dataFinal||null,hora_inicial:x.horaInicial||null,hora_final:x.horaFinal||null,quantidade_horas:x.quantidadeHoras||0,quantidade_dias:x.quantidadeDias||0,observacoes:x.observacoes||null,arquivo:x.arquivo||null,nome_arquivo:x.nomeArquivo||null,tipo_arquivo:x.tipoArquivo||null,tamanho_arquivo:x.tamanhoArquivo||0,data_cadastro:x.dataCadastro||new Date().toISOString()};
+    if(store==="faltas") return {funcionario_id:x.funcionarioId,data:x.data,tipo:x.tipo||'Falta',justificativa:x.justificativa||null,observacoes:x.observacoes||null};
     const y={...x}; delete y.id; return y;
   }
   async function add(store,value){
-    const r=await api(`/${store}`,{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))});
+    const r=await api(`/${store}`,{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))});
     return fromDB(store,r[0]);
   }
   async function put(store,value){
-    if(value.id){ const r=await api(`/${store}?id=eq.${encodeURIComponent(value.id)}`,{method:"PATCH",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))}); return fromDB(store,r[0]); }
+    if(value.id){ const r=await api(`/${store}?id=eq.${encodeURIComponent(value.id)}`,{method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))}); return fromDB(store,r[0]); }
     return add(store,value);
   }
   async function get(store,key){ const r=await api(`/${store}?id=eq.${encodeURIComponent(key)}&select=*`); return fromDB(store,r[0]||null); }
@@ -181,20 +175,6 @@ const App = (() => {
   async function clearStore(store){ const all=await getAll(store); for(const x of all) await remove(store,x.id); return true; }
   async function seedDemoData(){ return; }
   function fileToDataURL(file){ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);}); }
-  async function uploadFile(file, folder="declaracoes"){
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const path=`${folder}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safe}`;
-    const res=await fetch(`${STORAGE}/object/documentos/${path}`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":file.type||"application/octet-stream", "x-upsert":"false"},body:file});
-    if(!res.ok) throw new Error(await res.text());
-    return {url:`${SUPABASE_URL}/storage/v1/object/public/documentos/${path}`,path,name:file.name,type:file.type,size:file.size};
-  }
-  async function deleteFileByUrl(url){
-    if(!url) return;
-    const marker="/object/public/documentos/";
-    const i=url.indexOf(marker); if(i<0) return;
-    const path=url.slice(i+marker.length);
-    await fetch(`${STORAGE}/object/documentos/${path}`,{method:"DELETE",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
-  }
 
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -241,7 +221,7 @@ const App = (() => {
     NAV, uid, escapeHTML, formatDate, formatBytes, initials,
     getPageKey, layout, openModal, closeModal, toast,
     add, put, get, getAll, remove, clearStore, seedDemoData,
-    fileToDataURL, uploadFile, deleteFileByUrl, downloadBlob, exportBackup, importBackup, counts
+    fileToDataURL, downloadBlob, exportBackup, importBackup, counts
   };
 })();
 
