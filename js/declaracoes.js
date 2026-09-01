@@ -1,5 +1,10 @@
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
+    // Validação preventiva de tamanho (máximo ~3MB para evitar travamento)
+    if (file.size > 3 * 1024 * 1024) {
+      reject(new Error("O arquivo é muito grande. Escolha um arquivo de até 3MB."));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = error => reject(error);
@@ -69,13 +74,17 @@ const DeclaracoesPage = {
           </thead>
           <tbody>
             ${rows.map(d => {
-              const f = funcMap[d.funcionarioId];
+              const f = funcMap[d.funcionarioId || d.funcionario_id];
               const isHoras = d.tipo === "horas";
+              const dataInicial = d.dataInicial || d.data_inicial || d.data;
+              const dataFinal = d.dataFinal || d.data_final || dataInicial;
+              
               const periodo = isHoras 
                 ? App.formatDate(d.data) 
-                : `${App.formatDate(d.dataInicial || d.data)} até ${App.formatDate(d.dataFinal || d.dataInicial || d.data)}`;
-              const qtd = isHoras ? `${d.quantidadeHoras || 0}h` : `${d.quantidadeDias || 0} dia(s)`;
-              const temAnexo = d.arquivoUrl || d.arquivoBase64;
+                : `${App.formatDate(dataInicial)} até ${App.formatDate(dataFinal)}`;
+              
+              const qtd = isHoras ? `${d.quantidadeHoras || d.quantidade_horas || 0}h` : `${d.quantidadeDias || d.quantidade_dias || 0} dia(s)`;
+              const anexo = d.arquivoUrl || d.arquivo_url || d.arquivoBase64 || d.arquivo_base64;
 
               return `
                 <tr>
@@ -85,8 +94,8 @@ const DeclaracoesPage = {
                   <td>${periodo}</td>
                   <td>${qtd}</td>
                   <td>
-                    ${temAnexo 
-                      ? `<a href="${d.arquivoUrl || d.arquivoBase64}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Ver Anexo</a>` 
+                    ${anexo 
+                      ? `<a href="${anexo}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Ver Anexo</a>` 
                       : `<span style="color:#888;">Sem anexo</span>`}
                   </td>
                   <td>${App.escapeHTML(d.observacoes || "—")}</td>
@@ -130,7 +139,8 @@ const NovaDeclaracaoPage = {
       }
 
       const isEdit = !!decl;
-      const temAnexo = decl && (decl.arquivoUrl || decl.arquivoBase64);
+      const funcIdAtual = decl?.funcionarioId || decl?.funcionario_id;
+      const anexoAtual = decl?.arquivoUrl || decl?.arquivo_url || decl?.arquivoBase64 || decl?.arquivo_base64;
 
       App.layout(
         isEdit ? "Editar Declaração" : "Nova Declaração", 
@@ -143,7 +153,7 @@ const NovaDeclaracaoPage = {
                 <label for="funcionarioId">Funcionário *</label>
                 <select id="funcionarioId" class="input" required>
                   <option value="">Selecione...</option>
-                  ${funcs.map(f => `<option value="${f.id}" ${decl && decl.funcionarioId == f.id ? "selected" : ""}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
+                  ${funcs.map(f => `<option value="${f.id}" ${decl && funcIdAtual == f.id ? "selected" : ""}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
                 </select>
               </div>
               <div class="field">
@@ -165,7 +175,7 @@ const NovaDeclaracaoPage = {
             <div class="field">
               <label for="arquivo">${isEdit ? "Substituir declaração (opcional)" : "Anexar declaração"}</label>
               <input type="file" id="arquivo" class="input-file" accept=".pdf,image/*">
-              ${temAnexo ? `<p style="margin-top:5px;"><a href="${decl.arquivoUrl || decl.arquivoBase64}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Visualizar Anexo Atual</a></p>` : ''}
+              ${anexoAtual ? `<p style="margin-top:8px;"><a href="${anexoAtual}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Visualizar Anexo Atual</a></p>` : ''}
             </div>
 
             <div class="form-actions">
@@ -189,6 +199,10 @@ const NovaDeclaracaoPage = {
 
     const renderCampos = () => {
       if (tipo.value === "horas") {
+        const hInicial = decl?.horaInicial || decl?.hora_inicial || '';
+        const hFinal = decl?.horaFinal || decl?.hora_final || '';
+        const qHoras = decl?.quantidadeHoras || decl?.quantidade_horas || '';
+
         campos.innerHTML = `
           <div class="grid-3">
             <div class="field">
@@ -197,34 +211,38 @@ const NovaDeclaracaoPage = {
             </div>
             <div class="field">
               <label for="horaInicial">Horário inicial</label>
-              <input type="time" id="horaInicial" class="input" value="${decl?.horaInicial || ''}">
+              <input type="time" id="horaInicial" class="input" value="${hInicial}">
             </div>
             <div class="field">
               <label for="horaFinal">Horário final</label>
-              <input type="time" id="horaFinal" class="input" value="${decl?.horaFinal || ''}">
+              <input type="time" id="horaFinal" class="input" value="${hFinal}">
             </div>
           </div>
           <div class="grid-2">
             <div class="field">
               <label for="quantidadeHoras">Quantidade de horas</label>
-              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" value="${decl?.quantidadeHoras || ''}" placeholder="Ex: 2">
+              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" value="${qHoras}" placeholder="Ex: 2">
             </div>
           </div>
         `;
       } else {
+        const dInicial = decl?.dataInicial || decl?.data_inicial || decl?.data || '';
+        const dFinal = decl?.dataFinal || decl?.data_final || '';
+        const qDias = decl?.quantidadeDias || decl?.quantidade_dias || '';
+
         campos.innerHTML = `
           <div class="grid-3">
             <div class="field">
               <label for="dataInicial">Data inicial *</label>
-              <input type="date" id="dataInicial" class="input" value="${decl?.dataInicial || decl?.data || ''}" required>
+              <input type="date" id="dataInicial" class="input" value="${dInicial}" required>
             </div>
             <div class="field">
               <label for="dataFinal">Data final</label>
-              <input type="date" id="dataFinal" class="input" value="${decl?.dataFinal || ''}">
+              <input type="date" id="dataFinal" class="input" value="${dFinal}">
             </div>
             <div class="field">
               <label for="quantidadeDias">Quantidade de dias</label>
-              <input type="number" id="quantidadeDias" class="input" step="1" min="1" value="${decl?.quantidadeDias || ''}" placeholder="Ex: 1">
+              <input type="number" id="quantidadeDias" class="input" step="1" min="1" value="${qDias}" placeholder="Ex: 1">
             </div>
           </div>
         `;
@@ -251,17 +269,25 @@ const NovaDeclaracaoPage = {
       const tipo = document.getElementById("tipo").value;
       const fileInput = document.getElementById("arquivo");
 
-      let arquivoBase64 = declAntiga?.arquivoBase64 || null;
+      let anexoData = declAntiga?.arquivoUrl || declAntiga?.arquivo_url || declAntiga?.arquivoBase64 || declAntiga?.arquivo_base64 || null;
+
       if (fileInput.files.length > 0) {
-        arquivoBase64 = await fileToBase64(fileInput.files[0]);
+        anexoData = await fileToBase64(fileInput.files[0]);
       }
 
+      const funcId = document.getElementById("funcionarioId").value;
+      const obs = document.getElementById("observacoes").value;
+
+      // Monta o objeto compatível com colunas camelCase e snake_case
       const payload = {
-        funcionarioId: document.getElementById("funcionarioId").value,
+        funcionarioId: funcId,
+        funcionario_id: funcId,
         tipo: tipo,
-        observacoes: document.getElementById("observacoes").value,
-        arquivoBase64: arquivoBase64,
-        arquivoUrl: declAntiga?.arquivoUrl || null
+        observacoes: obs,
+        arquivoBase64: anexoData,
+        arquivo_base64: anexoData,
+        arquivoUrl: anexoData,
+        arquivo_url: anexoData
       };
 
       if (declAntiga?.id) {
@@ -269,15 +295,30 @@ const NovaDeclaracaoPage = {
       }
 
       if (tipo === "horas") {
-        payload.data = document.getElementById("data").value;
-        payload.horaInicial = document.getElementById("horaInicial").value || null;
-        payload.horaFinal = document.getElementById("horaFinal").value || null;
-        payload.quantidadeHoras = parseFloat(document.getElementById("quantidadeHoras").value) || 0;
+        const dataVal = document.getElementById("data").value;
+        const hIni = document.getElementById("horaInicial").value || null;
+        const hFim = document.getElementById("horaFinal").value || null;
+        const qHoras = parseFloat(document.getElementById("quantidadeHoras").value) || 0;
+
+        payload.data = dataVal;
+        payload.horaInicial = hIni;
+        payload.hora_inicial = hIni;
+        payload.horaFinal = hFim;
+        payload.hora_final = hFim;
+        payload.quantidadeHoras = qHoras;
+        payload.quantidade_horas = qHoras;
       } else {
-        payload.dataInicial = document.getElementById("dataInicial").value;
-        payload.dataFinal = document.getElementById("dataFinal").value || payload.dataInicial;
-        payload.data = payload.dataInicial;
-        payload.quantidadeDias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
+        const dIni = document.getElementById("dataInicial").value;
+        const dFim = document.getElementById("dataFinal").value || dIni;
+        const qDias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
+
+        payload.dataInicial = dIni;
+        payload.data_inicial = dIni;
+        payload.dataFinal = dFim;
+        payload.data_final = dFim;
+        payload.data = dIni;
+        payload.quantidadeDias = qDias;
+        payload.quantidade_dias = qDias;
       }
 
       if (declAntiga?.id) {
@@ -291,7 +332,7 @@ const NovaDeclaracaoPage = {
       setTimeout(() => window.location.href = "declaracoes.html", 1000);
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao salvar declaração", "danger");
+      App.toast("Erro ao salvar: " + (err.message || err), "danger");
       btn.disabled = false;
     }
   }
