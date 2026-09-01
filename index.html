@@ -9,9 +9,20 @@
 </head>
 <body data-page="dashboard">
   <div id="app"></div>
-  <script src="js/app.js"></script>
+
+  <!-- Carregamento do script principal -->
+  <script src="js/app.js?v=20260901"></script>
+  
   <script>
-    document.addEventListener("DOMContentLoaded", () => DashboardPage.init());
+    document.addEventListener("DOMContentLoaded", () => {
+      // Aguarda a confirmação do carregamento do objeto DashboardPage
+      if (typeof DashboardPage !== "undefined") {
+        DashboardPage.init();
+      } else {
+        console.error("DashboardPage não encontrado em js/app.js. Recarregando...");
+        setTimeout(() => location.reload(), 1000);
+      }
+    });
   </script>
 </body>
 </html>
