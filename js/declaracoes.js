@@ -11,6 +11,19 @@ function fileToBase64(file) {
   });
 }
 
+// Função auxiliar para extrair o ID real do objeto funcionário
+function getFuncionarioId(f) {
+  if (!f || typeof f !== 'object') return null;
+  // Procura pelas chaves de ID mais comuns no Supabase/Banco de dados
+  const idVal = f.id ?? f.funcionario_id ?? f.id_funcionario ?? f.codigo ?? f.matricula;
+  if (idVal !== undefined && idVal !== null && idVal !== '') {
+    return idVal;
+  }
+  // Se não encontrar nas chaves comuns, pega o primeiro valor válido do objeto
+  const values = Object.values(f);
+  return values.length > 0 ? values[0] : null;
+}
+
 const DeclaracoesPage = {
   async init() {
     try {
@@ -21,9 +34,9 @@ const DeclaracoesPage = {
 
       const funcMap = {};
       if (Array.isArray(funcionarios)) {
-        funcionarios.forEach(f => { 
-          const key = f.id || f.funcionario_id || f.matricula;
-          if (key) funcMap[key] = f;
+        funcionarios.forEach(f => {
+          const fid = getFuncionarioId(f);
+          if (fid) funcMap[fid] = f;
         });
       }
 
@@ -138,8 +151,11 @@ const NovaDeclaracaoPage = {
 
     try {
       const funcs = await App.getAll("funcionarios").catch(() => []);
-      let decl = null;
+      
+      // Log no console para inspecionar a estrutura dos funcionários cadastrados
+      console.log("Funcionários retornados do Supabase:", funcs);
 
+      let decl = null;
       if (id) {
         decl = await App.get("declaracoes", id).catch(() => null);
       }
@@ -160,10 +176,11 @@ const NovaDeclaracaoPage = {
                 <select id="funcionarioSelect" name="funcionario_id" class="input" required>
                   <option value="">Selecione...</option>
                   ${funcs.map(f => {
-                    // Pega o ID correto independente de ser f.id, f.funcionario_id ou outro
-                    const realId = f.id !== undefined && f.id !== null && f.id !== "" ? f.id : (f.funcionario_id || f.matricula);
+                    const realId = getFuncionarioId(f);
                     const selected = decl && (funcIdAtual == realId || String(funcIdAtual) === String(realId)) ? "selected" : "";
-                    return `<option value="${realId}" ${selected}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`;
+                    const nomeStr = f.nome || f.nome_funcionario || "Sem nome";
+                    const matStr = f.matricula || f.cpf || "000";
+                    return `<option value="${realId}" ${selected}>${App.escapeHTML(nomeStr)} — ${App.escapeHTML(matStr)}</option>`;
                   }).join("")}
                 </select>
               </div>
@@ -277,7 +294,7 @@ const NovaDeclaracaoPage = {
     const selectEl = document.getElementById("funcionarioSelect");
     const rawFuncId = selectEl ? selectEl.value : "";
 
-    if (!rawFuncId || rawFuncId === "undefined" || rawFuncId === "null") {
+    if (!rawFuncId || rawFuncId === "undefined" || rawFuncId === "null" || rawFuncId.trim() === "") {
       App.toast("Por favor, selecione um funcionário válido.", "danger");
       return;
     }
@@ -295,6 +312,7 @@ const NovaDeclaracaoPage = {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
+      // Converte para número se for numérico, senão preserva string/UUID
       const funcIdParsed = (!isNaN(rawFuncId) && rawFuncId.trim() !== "") ? Number(rawFuncId) : rawFuncId;
 
       const obs = document.getElementById("observacoes").value || "";
@@ -324,6 +342,8 @@ const NovaDeclaracaoPage = {
         payload.data = dIni;
         payload.quantidade_dias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
       }
+
+      console.log("Payload enviado ao Supabase:", payload);
 
       if (declAntiga?.id) {
         await App.put("declaracoes", payload);
