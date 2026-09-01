@@ -11,9 +11,26 @@ function fileToBase64(file) {
   });
 }
 
-function getFuncionarioId(f) {
-  if (!f) return null;
-  return f.id ?? f.funcionario_id ?? f.id_funcionario ?? f.codigo ?? f.matricula ?? null;
+// Função para extrair dinamicamente um ID válido do objeto funcionário
+function extrairIdFuncionario(f) {
+  if (!f || typeof f !== 'object') return "";
+
+  // Procura primeiro nas propriedades mais comuns
+  const possiveisChaves = ['id', 'funcionario_id', 'id_funcionario', 'codigo', 'cpf', 'matricula'];
+  for (const key of possiveisChaves) {
+    if (f[key] !== undefined && f[key] !== null && String(f[key]).trim() !== "") {
+      return f[key];
+    }
+  }
+
+  // Se não encontrou nas chaves padrão, pega a primeira propriedade que não seja 'nome'
+  for (const [key, value] of Object.entries(f)) {
+    if (key !== 'nome' && key !== 'nome_funcionario' && value !== null && value !== undefined && String(value).trim() !== "") {
+      return value;
+    }
+  }
+
+  return "";
 }
 
 const DeclaracoesPage = {
@@ -27,7 +44,7 @@ const DeclaracoesPage = {
       const funcMap = {};
       if (Array.isArray(funcionarios)) {
         funcionarios.forEach(f => {
-          const fid = getFuncionarioId(f);
+          const fid = extrairIdFuncionario(f);
           if (fid) funcMap[fid] = f;
         });
       }
@@ -100,7 +117,7 @@ const DeclaracoesPage = {
               return `
                 <tr>
                   <td><code>#${d.id}</code></td>
-                  <td><strong>${App.escapeHTML(f?.nome || "Funcionário não encontrado")}</strong></td>
+                  <td><strong>${App.escapeHTML(f?.nome || f?.nome_funcionario || "Funcionário não encontrado")}</strong></td>
                   <td><span class="badge ${isHoras ? "badge-hours" : "badge-days"}">${isHoras ? "Horas" : "Dias"}</span></td>
                   <td>${periodo}</td>
                   <td>${qtd}</td>
@@ -146,6 +163,9 @@ const NovaDeclaracaoPage = {
     try {
       this.funcionariosLista = await App.getAll("funcionarios").catch(() => []);
       
+      console.log("=== ESTRUTURA DOS FUNCIONÁRIOS RETORNADOS DA TABELA ===");
+      console.log(this.funcionariosLista);
+
       let decl = null;
       if (id) {
         decl = await App.get("declaracoes", id).catch(() => null);
@@ -165,9 +185,9 @@ const NovaDeclaracaoPage = {
               <div class="field">
                 <label for="funcionarioSelect">Funcionário *</label>
                 <select id="funcionarioSelect" class="input" required>
-                  <option value="">Selecione...</option>
+                  <option value="">Selecione um funcionário...</option>
                   ${this.funcionariosLista.map((f, idx) => {
-                    const realId = getFuncionarioId(f);
+                    const realId = extrairIdFuncionario(f);
                     const selected = decl && (funcIdAtual == realId || String(funcIdAtual) === String(realId)) ? "selected" : "";
                     const nomeStr = f.nome || f.nome_funcionario || "Funcionário";
                     const matStr = f.matricula || f.cpf || "000";
@@ -283,19 +303,20 @@ const NovaDeclaracaoPage = {
     e.preventDefault();
 
     const selectEl = document.getElementById("funcionarioSelect");
-    let selectedFuncId = selectEl ? selectEl.value : "";
+    let rawFuncId = selectEl ? selectEl.value : "";
 
-    // Garantia secundária: tenta pegar o ID através do objeto original da lista caso o value falhe
-    if ((!selectedFuncId || selectedFuncId === "null" || selectedFuncId === "undefined") && selectEl.selectedIndex > 0) {
+    // Se a opção selecionada não tinha valor no value, recupera o funcionário original do array pelo index
+    if ((!rawFuncId || rawFuncId === "" || rawFuncId === "null" || rawFuncId === "undefined") && selectEl.selectedIndex >= 0) {
       const selectedOption = selectEl.options[selectEl.selectedIndex];
       const idx = selectedOption.getAttribute("data-index");
       if (idx !== null && this.funcionariosLista[idx]) {
-        selectedFuncId = getFuncionarioId(this.funcionariosLista[idx]);
+        rawFuncId = extrairIdFuncionario(this.funcionariosLista[idx]);
       }
     }
 
-    if (!selectedFuncId || selectedFuncId === "null" || selectedFuncId === "undefined") {
-      App.toast("Por favor, selecione um funcionário válido.", "danger");
+    // Trava de Segurança
+    if (!rawFuncId || String(rawFuncId).trim() === "" || rawFuncId === "null" || rawFuncId === "undefined") {
+      App.toast("Erro: Não foi possível identificar o ID do funcionário selecionado. Verifique o cadastro do funcionário.", "danger");
       return;
     }
 
@@ -312,7 +333,7 @@ const NovaDeclaracaoPage = {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
-      const funcIdParsed = (!isNaN(selectedFuncId) && String(selectedFuncId).trim() !== "") ? Number(selectedFuncId) : selectedFuncId;
+      const funcIdParsed = (!isNaN(rawFuncId) && String(rawFuncId).trim() !== "") ? Number(rawFuncId) : rawFuncId;
       const obs = document.getElementById("observacoes").value || "";
 
       const payload = {
@@ -340,6 +361,8 @@ const NovaDeclaracaoPage = {
         payload.data = dIni;
         payload.quantidade_dias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
       }
+
+      console.log("Payload enviado ao Supabase:", payload);
 
       if (declAntiga?.id) {
         await App.put("declaracoes", payload);
