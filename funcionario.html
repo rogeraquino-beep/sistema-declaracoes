@@ -9,10 +9,16 @@
 </head>
 <body data-page="funcionarios">
   <div id="app"></div>
-  <script src="js/app.js?v=15"></script>
-  <script src="js/funcionarios.js?v=15"></script>
+  <script src="js/app.js?v=20"></script>
+  <script src="js/funcionarios.js?v=20"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", () => FuncionarioPage.init());
+    document.addEventListener("DOMContentLoaded", () => {
+      if (typeof FuncionarioPage !== "undefined") {
+        FuncionarioPage.init();
+      } else {
+        console.error("O objeto FuncionarioPage não foi encontrado dentro de js/funcionarios.js");
+      }
+    });
   </script>
 </body>
 </html>
