@@ -1,6 +1,5 @@
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    // Validação preventiva de tamanho (máximo ~3MB para evitar travamento)
     if (file.size > 3 * 1024 * 1024) {
       reject(new Error("O arquivo é muito grande. Escolha um arquivo de até 3MB."));
       return;
@@ -74,17 +73,20 @@ const DeclaracoesPage = {
           </thead>
           <tbody>
             ${rows.map(d => {
-              const f = funcMap[d.funcionarioId || d.funcionario_id];
+              const f = funcMap[d.funcionario_id || d.funcionarioId];
               const isHoras = d.tipo === "horas";
-              const dataInicial = d.dataInicial || d.data_inicial || d.data;
-              const dataFinal = d.dataFinal || d.data_final || dataInicial;
+              const dataInicial = d.data_inicial || d.dataInicial || d.data;
+              const dataFinal = d.data_final || d.dataFinal || dataInicial;
               
               const periodo = isHoras 
                 ? App.formatDate(d.data) 
                 : `${App.formatDate(dataInicial)} até ${App.formatDate(dataFinal)}`;
               
-              const qtd = isHoras ? `${d.quantidadeHoras || d.quantidade_horas || 0}h` : `${d.quantidadeDias || d.quantidade_dias || 0} dia(s)`;
-              const anexo = d.arquivoUrl || d.arquivo_url || d.arquivoBase64 || d.arquivo_base64;
+              const qtd = isHoras 
+                ? `${d.quantidade_horas ?? d.quantidadeHoras ?? 0}h` 
+                : `${d.quantidade_dias ?? d.quantidadeDias ?? 0} dia(s)`;
+                
+              const anexo = d.arquivo_url || d.arquivoUrl || d.arquivo_base64 || d.arquivoBase64;
 
               return `
                 <tr>
@@ -139,8 +141,8 @@ const NovaDeclaracaoPage = {
       }
 
       const isEdit = !!decl;
-      const funcIdAtual = decl?.funcionarioId || decl?.funcionario_id;
-      const anexoAtual = decl?.arquivoUrl || decl?.arquivo_url || decl?.arquivoBase64 || decl?.arquivo_base64;
+      const funcIdAtual = decl?.funcionario_id || decl?.funcionarioId;
+      const anexoAtual = decl?.arquivo_url || decl?.arquivoUrl || decl?.arquivo_base64 || decl?.arquivoBase64;
 
       App.layout(
         isEdit ? "Editar Declaração" : "Nova Declaração", 
@@ -199,9 +201,9 @@ const NovaDeclaracaoPage = {
 
     const renderCampos = () => {
       if (tipo.value === "horas") {
-        const hInicial = decl?.horaInicial || decl?.hora_inicial || '';
-        const hFinal = decl?.horaFinal || decl?.hora_final || '';
-        const qHoras = decl?.quantidadeHoras || decl?.quantidade_horas || '';
+        const hInicial = decl?.hora_inicial || decl?.horaInicial || '';
+        const hFinal = decl?.hora_final || decl?.horaFinal || '';
+        const qHoras = decl?.quantidade_horas ?? decl?.quantidadeHoras ?? '';
 
         campos.innerHTML = `
           <div class="grid-3">
@@ -226,9 +228,9 @@ const NovaDeclaracaoPage = {
           </div>
         `;
       } else {
-        const dInicial = decl?.dataInicial || decl?.data_inicial || decl?.data || '';
-        const dFinal = decl?.dataFinal || decl?.data_final || '';
-        const qDias = decl?.quantidadeDias || decl?.quantidade_dias || '';
+        const dInicial = decl?.data_inicial || decl?.dataInicial || decl?.data || '';
+        const dFinal = decl?.data_final || decl?.dataFinal || '';
+        const qDias = decl?.quantidade_dias ?? decl?.quantidadeDias ?? '';
 
         campos.innerHTML = `
           <div class="grid-3">
@@ -269,24 +271,22 @@ const NovaDeclaracaoPage = {
       const tipo = document.getElementById("tipo").value;
       const fileInput = document.getElementById("arquivo");
 
-      let anexoData = declAntiga?.arquivoUrl || declAntiga?.arquivo_url || declAntiga?.arquivoBase64 || declAntiga?.arquivo_base64 || null;
+      let anexoData = declAntiga?.arquivo_url || declAntiga?.arquivoUrl || declAntiga?.arquivo_base64 || declAntiga?.arquivoBase64 || null;
 
       if (fileInput.files.length > 0) {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
-      const funcId = document.getElementById("funcionarioId").value;
+      const rawFuncId = document.getElementById("funcionarioId").value;
+      const funcId = rawFuncId ? Number(rawFuncId) : null;
       const obs = document.getElementById("observacoes").value;
 
-      // Monta o objeto compatível com colunas camelCase e snake_case
+      // Monta o payload 100% no padrão de colunas do Supabase (snake_case)
       const payload = {
-        funcionarioId: funcId,
         funcionario_id: funcId,
         tipo: tipo,
         observacoes: obs,
-        arquivoBase64: anexoData,
         arquivo_base64: anexoData,
-        arquivoUrl: anexoData,
         arquivo_url: anexoData
       };
 
@@ -295,30 +295,17 @@ const NovaDeclaracaoPage = {
       }
 
       if (tipo === "horas") {
-        const dataVal = document.getElementById("data").value;
-        const hIni = document.getElementById("horaInicial").value || null;
-        const hFim = document.getElementById("horaFinal").value || null;
-        const qHoras = parseFloat(document.getElementById("quantidadeHoras").value) || 0;
-
-        payload.data = dataVal;
-        payload.horaInicial = hIni;
-        payload.hora_inicial = hIni;
-        payload.horaFinal = hFim;
-        payload.hora_final = hFim;
-        payload.quantidadeHoras = qHoras;
-        payload.quantidade_horas = qHoras;
+        payload.data = document.getElementById("data").value;
+        payload.hora_inicial = document.getElementById("horaInicial").value || null;
+        payload.hora_final = document.getElementById("horaFinal").value || null;
+        payload.quantidade_horas = parseFloat(document.getElementById("quantidadeHoras").value) || 0;
       } else {
         const dIni = document.getElementById("dataInicial").value;
         const dFim = document.getElementById("dataFinal").value || dIni;
-        const qDias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
-
-        payload.dataInicial = dIni;
         payload.data_inicial = dIni;
-        payload.dataFinal = dFim;
         payload.data_final = dFim;
         payload.data = dIni;
-        payload.quantidadeDias = qDias;
-        payload.quantidade_dias = qDias;
+        payload.quantidade_dias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
       }
 
       if (declAntiga?.id) {
