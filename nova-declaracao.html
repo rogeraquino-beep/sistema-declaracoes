@@ -9,10 +9,16 @@
 </head>
 <body data-page="nova-declaracao">
   <div id="app"></div>
-  <script src="js/app.js?v=14"></script>
-  <script src="js/declaracoes.js?v=14"></script>
+  <script src="js/app.js?v=35"></script>
+  <script src="js/declaracoes.js?v=35"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", () => NovaDeclaracaoPage.init());
+    document.addEventListener("DOMContentLoaded", () => {
+      if (typeof NovaDeclaracaoPage !== "undefined") {
+        NovaDeclaracaoPage.init();
+      } else {
+        console.error("NovaDeclaracaoPage não foi encontrada no js/declaracoes.js");
+      }
+    });
   </script>
 </body>
 </html>

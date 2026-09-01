@@ -91,7 +91,7 @@ const DeclaracoesPage = {
                   </td>
                   <td>${App.escapeHTML(d.observacoes || "—")}</td>
                   <td class="no-print">
-                    <a href="declaracao.html?id=${d.id}" class="btn btn-secondary btn-sm">Editar</a>
+                    <a href="nova-declaracao.html?id=${d.id}" class="btn btn-secondary btn-sm">Editar</a>
                     <button class="btn btn-danger btn-sm" onclick="DeclaracoesPage.deleteItem('${d.id}')">Excluir</button>
                   </td>
                 </tr>
@@ -118,9 +118,24 @@ const DeclaracoesPage = {
 
 const NovaDeclaracaoPage = {
   async init() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
     try {
       const funcs = await App.getAll("funcionarios").catch(() => []);
-      App.layout("Nova Declaração", "Lançamento e anexação do documento", `
+      let decl = null;
+
+      if (id) {
+        decl = await App.get("declaracoes", id).catch(() => null);
+      }
+
+      const isEdit = !!decl;
+      const temAnexo = decl && (decl.arquivoUrl || decl.arquivoBase64);
+
+      App.layout(
+        isEdit ? "Editar Declaração" : "Nova Declaração", 
+        isEdit ? "Atualização dos dados da declaração" : "Lançamento e anexação do documento", 
+        `
         <div class="card panel">
           <form id="declForm" class="form">
             <div class="grid-2">
@@ -128,14 +143,14 @@ const NovaDeclaracaoPage = {
                 <label for="funcionarioId">Funcionário *</label>
                 <select id="funcionarioId" class="input" required>
                   <option value="">Selecione...</option>
-                  ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
+                  ${funcs.map(f => `<option value="${f.id}" ${decl && decl.funcionarioId == f.id ? "selected" : ""}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
                 </select>
               </div>
               <div class="field">
                 <label for="tipo">Tipo de declaração *</label>
                 <select id="tipo" class="input" required>
-                  <option value="horas">Declaração de Horas</option>
-                  <option value="dias">Declaração de Dias</option>
+                  <option value="horas" ${decl && decl.tipo === "horas" ? "selected" : ""}>Declaração de Horas</option>
+                  <option value="dias" ${decl && decl.tipo === "dias" ? "selected" : ""}>Declaração de Dias</option>
                 </select>
               </div>
             </div>
@@ -144,192 +159,18 @@ const NovaDeclaracaoPage = {
 
             <div class="field">
               <label for="observacoes">Observações</label>
-              <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais..."></textarea>
+              <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais...">${App.escapeHTML(decl?.observacoes || "")}</textarea>
             </div>
 
             <div class="field">
-              <label for="arquivo">Anexar declaração</label>
-              <input type="file" id="arquivo" class="input-file" accept=".pdf,image/*">
-            </div>
-
-            <div class="form-actions">
-              <a href="declaracoes.html" class="btn btn-secondary">Cancelar</a>
-              <button type="submit" class="btn btn-primary">Salvar declaração</button>
-            </div>
-          </form>
-        </div>
-      `);
-
-      this.bindEvents();
-    } catch (err) {
-      console.error(err);
-      App.toast("Erro ao abrir formulário", "danger");
-    }
-  },
-
-  bindEvents() {
-    const tipo = document.getElementById("tipo");
-    const campos = document.getElementById("camposDinamicos");
-
-    const renderCampos = () => {
-      if (tipo.value === "horas") {
-        campos.innerHTML = `
-          <div class="grid-3">
-            <div class="field">
-              <label for="data">Data *</label>
-              <input type="date" id="data" class="input" required>
-            </div>
-            <div class="field">
-              <label for="horaInicial">Horário inicial</label>
-              <input type="time" id="horaInicial" class="input">
-            </div>
-            <div class="field">
-              <label for="horaFinal">Horário final</label>
-              <input type="time" id="horaFinal" class="input">
-            </div>
-          </div>
-          <div class="grid-2">
-            <div class="field">
-              <label for="quantidadeHoras">Quantidade de horas</label>
-              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" placeholder="Ex: 2">
-            </div>
-          </div>
-        `;
-      } else {
-        campos.innerHTML = `
-          <div class="grid-3">
-            <div class="field">
-              <label for="dataInicial">Data inicial *</label>
-              <input type="date" id="dataInicial" class="input" required>
-            </div>
-            <div class="field">
-              <label for="dataFinal">Data final</label>
-              <input type="date" id="dataFinal" class="input">
-            </div>
-            <div class="field">
-              <label for="quantidadeDias">Quantidade de dias</label>
-              <input type="number" id="quantidadeDias" class="input" step="1" min="1" placeholder="Ex: 1">
-            </div>
-          </div>
-        `;
-      }
-
-      const inputData = document.getElementById("data") || document.getElementById("dataInicial");
-      if (inputData && !inputData.value) {
-        inputData.value = new Date().toISOString().slice(0, 10);
-      }
-    };
-
-    tipo.addEventListener("change", renderCampos);
-    renderCampos();
-
-    document.getElementById("declForm").addEventListener("submit", e => this.save(e));
-  },
-
-  async save(e) {
-    e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true;
-
-    try {
-      const tipo = document.getElementById("tipo").value;
-      const fileInput = document.getElementById("arquivo");
-
-      let arquivoBase64 = null;
-      if (fileInput.files.length > 0) {
-        arquivoBase64 = await fileToBase64(fileInput.files[0]);
-      }
-
-      const payload = {
-        funcionarioId: document.getElementById("funcionarioId").value,
-        tipo: tipo,
-        observacoes: document.getElementById("observacoes").value,
-        arquivoBase64: arquivoBase64
-      };
-
-      if (tipo === "horas") {
-        payload.data = document.getElementById("data").value;
-        payload.horaInicial = document.getElementById("horaInicial").value || null;
-        payload.horaFinal = document.getElementById("horaFinal").value || null;
-        payload.quantidadeHoras = parseFloat(document.getElementById("quantidadeHoras").value) || 0;
-      } else {
-        payload.dataInicial = document.getElementById("dataInicial").value;
-        payload.dataFinal = document.getElementById("dataFinal").value || payload.dataInicial;
-        payload.data = payload.dataInicial;
-        payload.quantidadeDias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
-      }
-
-      await App.add("declaracoes", payload);
-      App.toast("Declaração salva com sucesso!");
-      setTimeout(() => window.location.href = "declaracoes.html", 1000);
-    } catch (err) {
-      console.error(err);
-      App.toast("Erro ao salvar declaração", "danger");
-      btn.disabled = false;
-    }
-  }
-};
-
-const EditarDeclaracaoPage = {
-  async init() {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get("id");
-
-    if (!id) {
-      window.location.href = "declaracoes.html";
-      return;
-    }
-
-    try {
-      const [decl, funcs] = await Promise.all([
-        App.get("declaracoes", id),
-        App.getAll("funcionarios").catch(() => [])
-      ]);
-
-      if (!decl) {
-        App.toast("Declaração não encontrada", "danger");
-        setTimeout(() => window.location.href = "declaracoes.html", 1500);
-        return;
-      }
-
-      const temAnexo = decl.arquivoUrl || decl.arquivoBase64;
-
-      App.layout("Editar Declaração", "Atualização dos dados da declaração", `
-        <div class="card panel">
-          <form id="editDeclForm" class="form">
-            <div class="grid-2">
-              <div class="field">
-                <label for="funcionarioId">Funcionário *</label>
-                <select id="funcionarioId" class="input" required>
-                  <option value="">Selecione...</option>
-                  ${funcs.map(f => `<option value="${f.id}" ${f.id == decl.funcionarioId ? "selected" : ""}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
-                </select>
-              </div>
-              <div class="field">
-                <label for="tipo">Tipo de declaração *</label>
-                <select id="tipo" class="input" required>
-                  <option value="horas" ${decl.tipo === "horas" ? "selected" : ""}>Declaração de Horas</option>
-                  <option value="dias" ${decl.tipo === "dias" ? "selected" : ""}>Declaração de Dias</option>
-                </select>
-              </div>
-            </div>
-
-            <div id="camposDinamicos"></div>
-
-            <div class="field">
-              <label for="observacoes">Observações</label>
-              <textarea id="observacoes" class="input" rows="3">${App.escapeHTML(decl.observacoes || "")}</textarea>
-            </div>
-
-            <div class="field">
-              <label for="arquivo">Substituir / Anexar declaração</label>
+              <label for="arquivo">${isEdit ? "Substituir declaração (opcional)" : "Anexar declaração"}</label>
               <input type="file" id="arquivo" class="input-file" accept=".pdf,image/*">
               ${temAnexo ? `<p style="margin-top:5px;"><a href="${decl.arquivoUrl || decl.arquivoBase64}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Visualizar Anexo Atual</a></p>` : ''}
             </div>
 
             <div class="form-actions">
               <a href="declaracoes.html" class="btn btn-secondary">Cancelar</a>
-              <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+              <button type="submit" class="btn btn-primary">${isEdit ? "Salvar Alterações" : "Salvar declaração"}</button>
             </div>
           </form>
         </div>
@@ -352,21 +193,21 @@ const EditarDeclaracaoPage = {
           <div class="grid-3">
             <div class="field">
               <label for="data">Data *</label>
-              <input type="date" id="data" class="input" value="${decl.data || ''}" required>
+              <input type="date" id="data" class="input" value="${decl?.data || ''}" required>
             </div>
             <div class="field">
               <label for="horaInicial">Horário inicial</label>
-              <input type="time" id="horaInicial" class="input" value="${decl.horaInicial || ''}">
+              <input type="time" id="horaInicial" class="input" value="${decl?.horaInicial || ''}">
             </div>
             <div class="field">
               <label for="horaFinal">Horário final</label>
-              <input type="time" id="horaFinal" class="input" value="${decl.horaFinal || ''}">
+              <input type="time" id="horaFinal" class="input" value="${decl?.horaFinal || ''}">
             </div>
           </div>
           <div class="grid-2">
             <div class="field">
               <label for="quantidadeHoras">Quantidade de horas</label>
-              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" value="${decl.quantidadeHoras || ''}">
+              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" value="${decl?.quantidadeHoras || ''}" placeholder="Ex: 2">
             </div>
           </div>
         `;
@@ -375,25 +216,30 @@ const EditarDeclaracaoPage = {
           <div class="grid-3">
             <div class="field">
               <label for="dataInicial">Data inicial *</label>
-              <input type="date" id="dataInicial" class="input" value="${decl.dataInicial || decl.data || ''}" required>
+              <input type="date" id="dataInicial" class="input" value="${decl?.dataInicial || decl?.data || ''}" required>
             </div>
             <div class="field">
               <label for="dataFinal">Data final</label>
-              <input type="date" id="dataFinal" class="input" value="${decl.dataFinal || ''}">
+              <input type="date" id="dataFinal" class="input" value="${decl?.dataFinal || ''}">
             </div>
             <div class="field">
               <label for="quantidadeDias">Quantidade de dias</label>
-              <input type="number" id="quantidadeDias" class="input" step="1" min="1" value="${decl.quantidadeDias || ''}">
+              <input type="number" id="quantidadeDias" class="input" step="1" min="1" value="${decl?.quantidadeDias || ''}" placeholder="Ex: 1">
             </div>
           </div>
         `;
+      }
+
+      const inputData = document.getElementById("data") || document.getElementById("dataInicial");
+      if (inputData && !inputData.value) {
+        inputData.value = new Date().toISOString().slice(0, 10);
       }
     };
 
     tipo.addEventListener("change", renderCampos);
     renderCampos();
 
-    document.getElementById("editDeclForm").addEventListener("submit", e => this.save(e, decl));
+    document.getElementById("declForm").addEventListener("submit", e => this.save(e, decl));
   },
 
   async save(e, declAntiga) {
@@ -405,19 +251,22 @@ const EditarDeclaracaoPage = {
       const tipo = document.getElementById("tipo").value;
       const fileInput = document.getElementById("arquivo");
 
-      let arquivoBase64 = declAntiga.arquivoBase64 || null;
+      let arquivoBase64 = declAntiga?.arquivoBase64 || null;
       if (fileInput.files.length > 0) {
         arquivoBase64 = await fileToBase64(fileInput.files[0]);
       }
 
       const payload = {
-        id: declAntiga.id,
         funcionarioId: document.getElementById("funcionarioId").value,
         tipo: tipo,
         observacoes: document.getElementById("observacoes").value,
         arquivoBase64: arquivoBase64,
-        arquivoUrl: declAntiga.arquivoUrl || null
+        arquivoUrl: declAntiga?.arquivoUrl || null
       };
+
+      if (declAntiga?.id) {
+        payload.id = declAntiga.id;
+      }
 
       if (tipo === "horas") {
         payload.data = document.getElementById("data").value;
@@ -431,12 +280,18 @@ const EditarDeclaracaoPage = {
         payload.quantidadeDias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
       }
 
-      await App.put("declaracoes", payload);
-      App.toast("Declaração atualizada com sucesso!");
+      if (declAntiga?.id) {
+        await App.put("declaracoes", payload);
+        App.toast("Declaração atualizada com sucesso!");
+      } else {
+        await App.add("declaracoes", payload);
+        App.toast("Declaração cadastrada com sucesso!");
+      }
+
       setTimeout(() => window.location.href = "declaracoes.html", 1000);
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao atualizar declaração", "danger");
+      App.toast("Erro ao salvar declaração", "danger");
       btn.disabled = false;
     }
   }
