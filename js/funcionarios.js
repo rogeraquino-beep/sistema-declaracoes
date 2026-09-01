@@ -117,7 +117,7 @@ const NovoFuncionarioPage = {
     const form = e.currentTarget;
     const fd = new FormData(form);
     const record = {
-      id: this.editingId || App.uid("fun"),
+      id: this.editingId || null,
       nome: String(fd.get("nome")||"").trim(),
       matricula: String(fd.get("matricula")||"").trim(),
       cargo: String(fd.get("cargo")||"").trim(),
@@ -133,7 +133,8 @@ const NovoFuncionarioPage = {
     const all = await App.getAll("funcionarios");
     const duplicate = all.find(x=>x.matricula===record.matricula && x.id!==record.id);
     if (duplicate) { App.toast("Já existe funcionário com essa matrícula.", "warning"); return; }
-    await App.put("funcionarios", record);
+    const saved = await App.put("funcionarios", record);
+    record.id = saved.id;
     App.toast(this.editingId ? "Funcionário atualizado com sucesso!" : "Funcionário cadastrado com sucesso!");
     setTimeout(()=>location.href = `funcionario.html?id=${encodeURIComponent(record.id)}`, 500);
   }

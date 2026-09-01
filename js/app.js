@@ -9,6 +9,7 @@ const App = (() => {
     { key: "funcionarios", href: "funcionarios.html", icon: "👥", label: "Funcionários" },
     { key: "declaracoes", href: "declaracoes.html", icon: "📄", label: "Declarações" },
     { key: "nova-declaracao", href: "nova-declaracao.html", icon: "＋", label: "Nova Declaração" },
+    { key: "faltas", href: "faltas.html", icon: "✖", label: "Faltas" },
     { key: "novo-funcionario", href: "novo-funcionario.html", icon: "＋", label: "Novo Funcionário" },
     { key: "relatorios", href: "relatorios.html", icon: "▥", label: "Relatórios" }
   ];
@@ -67,7 +68,7 @@ const App = (() => {
               </a>
             `).join("")}
           </nav>
-          <div class="sidebar-footer">Armazenamento local • IndexedDB</div>
+          <div class="sidebar-footer">Banco de dados online • Supabase</div>
         </aside>
         <main class="main">
           <header class="topbar">
@@ -138,126 +139,61 @@ const App = (() => {
     setTimeout(() => item.remove(), 3200);
   }
 
-  function openDB() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains("funcionarios")) {
-          const store = db.createObjectStore("funcionarios", { keyPath: "id" });
-          store.createIndex("nome", "nome", { unique: false });
-          store.createIndex("matricula", "matricula", { unique: false });
-        }
-        if (!db.objectStoreNames.contains("declaracoes")) {
-          const store = db.createObjectStore("declaracoes", { keyPath: "id" });
-          store.createIndex("funcionarioId", "funcionarioId", { unique: false });
-          store.createIndex("data", "data", { unique: false });
-          store.createIndex("tipo", "tipo", { unique: false });
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+  // Supabase
+  const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
+  const API = SUPABASE_URL + "/rest/v1";
+  const STORAGE = SUPABASE_URL + "/storage/v1";
+
+  async function api(path, options={}) {
+    const res = await fetch(API + path, {
+      ...options,
+      headers:{apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, ...(options.headers||{})}
     });
-    return dbPromise;
+    if(!res.ok){ const t=await res.text(); throw new Error(t||"Erro no Supabase"); }
+    const text=await res.text(); return text?JSON.parse(text):null;
   }
 
-  async function tx(storeName, mode="readonly") {
-    const db = await openDB();
-    return db.transaction(storeName, mode).objectStore(storeName);
+  function fromDB(store,x){
+    if(!x) return x;
+    if(store==="funcionarios") return {id:String(x.id),nome:x.nome_completo,matricula:x.matricula,cargo:x.cargo_funcao,setor:x.setor,vinculo:x.tipo_vinculo,dataAdmissao:x.data_admissao,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
+    if(store==="declaracoes") return {id:String(x.id),funcionarioId:String(x.funcionario_id),tipo:x.tipo,data:x.data,dataInicial:x.data_inicial||x.data_inicio||x.data,dataFinal:x.data_final||x.data_fim||x.data,horaInicial:x.hora_inicial,horaFinal:x.hora_final,quantidadeHoras:Number(x.quantidade_horas||0),quantidadeDias:Number(x.quantidade_dias||0),observacoes:x.observacoes||x.descricao||"",arquivo:x.arquivo_url||null,nomeArquivo:x.arquivo_nome||"",tipoArquivo:x.tipo_arquivo||"",tamanhoArquivo:Number(x.tamanho_arquivo||0)};
+    if(store==="faltas") return {id:String(x.id),funcionarioId:String(x.funcionario_id),dataFalta:x.data_falta||x.data_inicio,dataInicio:x.data_inicio||x.data_falta,dataFim:x.data_fim||x.data_falta,quantidadeDias:Number(x.quantidade_dias||1),motivo:x.motivo||"",justificativa:x.justificativa||"",observacoes:x.observacoes||"",status:x.status||"Não justificada",arquivo:x.arquivo_url||null,nomeArquivo:x.arquivo_nome||""};
+    return {...x,id:String(x.id)};
   }
-
-  async function add(storeName, value) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readwrite");
-        const req = store.add(value);
-        req.onsuccess = () => resolve(value);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
+  function toDB(store,x){
+    if(store==="funcionarios") return {nome_completo:x.nome,matricula:x.matricula,cargo_funcao:x.cargo,setor:x.setor,tipo_vinculo:x.vinculo,data_admissao:x.dataAdmissao||null,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
+    if(store==="declaracoes") return {funcionario_id:Number(x.funcionarioId),tipo:x.tipo,data:x.data||null,data_inicio:x.dataInicial||null,data_fim:x.dataFinal||null,data_inicial:x.dataInicial||null,data_final:x.dataFinal||null,hora_inicial:x.horaInicial||null,hora_final:x.horaFinal||null,quantidade_horas:Number(x.quantidadeHoras||0),quantidade_dias:Number(x.quantidadeDias||0),observacoes:x.observacoes||null,descricao:x.observacoes||null,arquivo_url:x.arquivo||null,arquivo_nome:x.nomeArquivo||null};
+    if(store==="faltas") return {funcionario_id:Number(x.funcionarioId),data_falta:x.dataFalta||x.dataInicio,data_inicio:x.dataInicio||null,data_fim:x.dataFim||null,quantidade_dias:Number(x.quantidadeDias||1),motivo:x.motivo||null,justificativa:x.justificativa||null,observacoes:x.observacoes||null,status:x.status||"Não justificada",arquivo_url:x.arquivo||null,arquivo_nome:x.nomeArquivo||null};
+    const y={...x}; delete y.id; return y;
   }
-
-  async function put(storeName, value) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readwrite");
-        const req = store.put(value);
-        req.onsuccess = () => resolve(value);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
+  async function add(store,value){
+    const r=await api(`/${store}`,{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))});
+    return fromDB(store,r[0]);
   }
-
-  async function get(storeName, key) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readonly");
-        const req = store.get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
+  async function put(store,value){
+    if(value.id){ const r=await api(`/${store}?id=eq.${encodeURIComponent(value.id)}`,{method:"PATCH",headers:{"Content-Type":"application/json",Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))}); return fromDB(store,r[0]); }
+    return add(store,value);
   }
-
-  async function getAll(storeName) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readonly");
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
+  async function get(store,key){ const r=await api(`/${store}?id=eq.${encodeURIComponent(key)}&select=*`); return fromDB(store,r[0]||null); }
+  async function getAll(store){ const r=await api(`/${store}?select=*&order=id.asc`); return (r||[]).map(x=>fromDB(store,x)); }
+  async function remove(store,key){ await api(`/${store}?id=eq.${encodeURIComponent(key)}`,{method:"DELETE"}); return true; }
+  async function clearStore(store){ const all=await getAll(store); for(const x of all) await remove(store,x.id); return true; }
+  async function seedDemoData(){ return; }
+  function fileToDataURL(file){ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);}); }
+  async function uploadFile(file, folder="declaracoes"){
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=`${folder}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safe}`;
+    const res=await fetch(`${STORAGE}/object/documentos/${path}`,{method:"POST",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`,"Content-Type":file.type||"application/octet-stream", "x-upsert":"false"},body:file});
+    if(!res.ok) throw new Error(await res.text());
+    return {url:`${SUPABASE_URL}/storage/v1/object/public/documentos/${path}`,path,name:file.name,type:file.type,size:file.size};
   }
-
-  async function remove(storeName, key) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readwrite");
-        const req = store.delete(key);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
-  }
-
-  async function clearStore(storeName) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const store = await tx(storeName, "readwrite");
-        const req = store.clear();
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => reject(req.error);
-      } catch (err) { reject(err); }
-    });
-  }
-
-  function fileToDataURL(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function seedDemoData() {
-    const funcionarios = await getAll("funcionarios");
-    if (funcionarios.length) return;
-    // DADOS FICTÍCIOS DE DEMONSTRAÇÃO
-    const demo = [
-      {id:uid("fun"), nome:"Maria de Souza", matricula:"00125", cargo:"Professora", setor:"Ensino Fundamental", vinculo:"Efetivo", dataAdmissao:"2022-02-15", cpf:"000.000.000-00", telefone:"(00) 00000-0000", email:"maria.exemplo@escola.local", status:"Ativo", observacoes:"Dado fictício para demonstração."},
-      {id:uid("fun"), nome:"João Pereira", matricula:"00126", cargo:"ASEB", setor:"Administrativo", vinculo:"Contratado", dataAdmissao:"2025-02-03", cpf:"000.000.000-01", telefone:"(00) 00000-0001", email:"joao.exemplo@escola.local", status:"Ativo", observacoes:"Dado fictício para demonstração."},
-      {id:uid("fun"), nome:"Ana Carolina Santos", matricula:"00127", cargo:"Supervisora", setor:"Pedagógico", vinculo:"Efetivo", dataAdmissao:"2021-08-12", cpf:"000.000.000-02", telefone:"(00) 00000-0002", email:"ana.exemplo@escola.local", status:"Ativo", observacoes:"Dado fictício para demonstração."}
-    ];
-    for (const f of demo) await add("funcionarios", f);
-    const declarations = [
-      {id:uid("dec"), funcionarioId:demo[0].id, tipo:"horas", data:"2026-08-25", horaInicial:"08:00", horaFinal:"12:00", quantidadeHoras:4, quantidadeDias:0, dataInicial:"2026-08-25", dataFinal:"2026-08-25", observacoes:"Demonstração", arquivo:null, nomeArquivo:"", tipoArquivo:"", tamanhoArquivo:0, dataCadastro:new Date().toISOString()},
-      {id:uid("dec"), funcionarioId:demo[1].id, tipo:"dias", data:"2026-08-20", horaInicial:"", horaFinal:"", quantidadeHoras:0, quantidadeDias:2, dataInicial:"2026-08-19", dataFinal:"2026-08-20", observacoes:"Demonstração", arquivo:null, nomeArquivo:"", tipoArquivo:"", tamanhoArquivo:0, dataCadastro:new Date().toISOString()},
-      {id:uid("dec"), funcionarioId:demo[2].id, tipo:"horas", data:"2026-08-22", horaInicial:"13:00", horaFinal:"16:00", quantidadeHoras:3, quantidadeDias:0, dataInicial:"2026-08-22", dataFinal:"2026-08-22", observacoes:"Demonstração", arquivo:null, nomeArquivo:"", tipoArquivo:"", tamanhoArquivo:0, dataCadastro:new Date().toISOString()}
-    ];
-    for (const d of declarations) await add("declaracoes", d);
+  async function deleteFileByUrl(url){
+    if(!url) return;
+    const marker="/object/public/documentos/";
+    const i=url.indexOf(marker); if(i<0) return;
+    const path=url.slice(i+marker.length);
+    await fetch(`${STORAGE}/object/documentos/${path}`,{method:"DELETE",headers:{apikey:SUPABASE_KEY,Authorization:`Bearer ${SUPABASE_KEY}`}});
   }
 
   function downloadBlob(blob, filename) {
@@ -304,8 +240,8 @@ const App = (() => {
   return {
     NAV, uid, escapeHTML, formatDate, formatBytes, initials,
     getPageKey, layout, openModal, closeModal, toast,
-    add, put, get, getAll, remove, seedDemoData,
-    fileToDataURL, downloadBlob, exportBackup, importBackup, counts
+    add, put, get, getAll, remove, clearStore, seedDemoData,
+    fileToDataURL, uploadFile, deleteFileByUrl, downloadBlob, exportBackup, importBackup, counts
   };
 })();
 
@@ -353,7 +289,7 @@ const DashboardPage = {
           </div>
           <input type="file" id="backupInput" accept=".json,application/json" class="hidden">
           <div style="margin-top:16px" class="alert alert-warning">
-            Esta versão usa armazenamento local do navegador. Para documentos reais, recomenda-se autenticação e banco seguro antes da implantação oficial.
+            Dados salvos online no Supabase.
           </div>
         </section>
       </div>
