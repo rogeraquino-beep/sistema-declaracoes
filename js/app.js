@@ -149,7 +149,7 @@ const App = (() => {
   function fromDB(store, x) {
     if (!x) return x;
     if (store === "funcionarios") return { id: String(x.id), nome: x.nome_completo || x.nome, matricula: x.matricula, cargo: x.cargo_funcao || x.cargo, setor: x.setor, vinculo: x.tipo_vinculo || x.vinculo, dataAdmissao: x.data_admissao || x.dataAdmissao, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
-    if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes, arquivo: x.arquivo, nomeArquivo: x.nome_arquivo, tipoArquivo: x.tipo_arquivo, tamanhoArquivo: x.tamanho_arquivo, dataCadastro: x.data_cadastro };
+    if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes, nomeArquivo: x.nome_arquivo, tipoArquivo: x.tipo_arquivo, tamanhoArquivo: x.tamanho_arquivo, dataCadastro: x.data_cadastro };
     if (store === "faltas") return { id: String(x.id), funcionarioId: String(x.funcionario_id), data: x.data, tipo: x.tipo, justificativa: x.justificativa, observacoes: x.observacoes, createdAt: x.created_at };
     return { ...x, id: String(x.id) };
   }
@@ -185,7 +185,6 @@ const App = (() => {
         quantidade_horas: x.quantidadeHoras || 0, 
         quantidade_dias: x.quantidadeDias || 0, 
         observacoes: x.observacoes || null, 
-        arquivo: x.arquivo || null, 
         nome_arquivo: x.nomeArquivo || null, 
         tipo_arquivo: x.tipoArquivo || null, 
         tamanho_arquivo: x.tamanhoArquivo || 0, 
