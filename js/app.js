@@ -149,7 +149,7 @@ const App = (() => {
   function fromDB(store, x) {
     if (!x) return x;
     if (store === "funcionarios") return { id: String(x.id), nome: x.nome_completo || x.nome, matricula: x.matricula, cargo: x.cargo_funcao || x.cargo, setor: x.setor, vinculo: x.tipo_vinculo || x.vinculo, dataAdmissao: x.data_admissao || x.dataAdmissao, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
-    if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes, nomeArquivo: x.nome_arquivo, tipoArquivo: x.tipo_arquivo, tamanhoArquivo: x.tamanho_arquivo, dataCadastro: x.data_cadastro };
+    if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes };
     if (store === "faltas") return { id: String(x.id), funcionarioId: String(x.funcionario_id), data: x.data, tipo: x.tipo, justificativa: x.justificativa, observacoes: x.observacoes, createdAt: x.created_at };
     return { ...x, id: String(x.id) };
   }
@@ -177,18 +177,14 @@ const App = (() => {
         id: x.id ? Number(x.id) : generateId(),
         funcionario_id: Number(x.funcionarioId), 
         tipo: x.tipo, 
-        data: x.data, 
+        data: x.data || null, 
         data_inicial: x.dataInicial || null, 
         data_final: x.dataFinal || null, 
         hora_inicial: x.horaInicial || null, 
         hora_final: x.horaFinal || null, 
         quantidade_horas: x.quantidadeHoras || 0, 
         quantidade_dias: x.quantidadeDias || 0, 
-        observacoes: x.observacoes || null, 
-        nome_arquivo: x.nomeArquivo || null, 
-        tipo_arquivo: x.tipoArquivo || null, 
-        tamanho_arquivo: x.tamanhoArquivo || 0, 
-        data_cadastro: x.dataCadastro || new Date().toISOString() 
+        observacoes: x.observacoes || null
       };
     } 
     else if (store === "faltas") {
@@ -318,17 +314,16 @@ const DashboardPage = {
   },
   recentTable(list, funcs) {
     const map = Object.fromEntries(funcs.map(f => [f.id, f]));
-    const rows = [...list].sort((a,b) => String(b.dataCadastro||"").localeCompare(String(a.dataCadastro||""))).slice(0,8);
+    const rows = [...list].sort((a,b) => String(b.id||"").localeCompare(String(a.id||""))).slice(0,8);
     if (!rows.length) return `<div class="empty"><strong>Nenhuma declaração</strong>Cadastre a primeira declaração para começar.</div>`;
-    return `<div class="table-wrap"><table><thead><tr><th>Funcionário</th><th>Tipo</th><th>Data</th><th>Quantidade</th><th>Documento</th></tr></thead><tbody>
+    return `<div class="table-wrap"><table><thead><tr><th>Funcionário</th><th>Tipo</th><th>Data</th><th>Quantidade</th></tr></thead><tbody>
       ${rows.map(d => {
         const f = map[d.funcionarioId];
         return `<tr>
           <td><strong>${App.escapeHTML(f?.nome || "Funcionário removido")}</strong></td>
           <td><span class="badge ${d.tipo==="horas"?"badge-hours":"badge-days"}">${d.tipo==="horas"?"Horas":"Dias"}</span></td>
-          <td>${App.formatDate(d.data)}</td>
+          <td>${App.formatDate(d.data || d.dataInicial)}</td>
           <td>${d.tipo==="horas"?`${d.quantidadeHoras||0} h`:`${d.quantidadeDias||0} dia(s)`}</td>
-          <td>${d.nomeArquivo?App.escapeHTML(d.nomeArquivo):"—"}</td>
         </tr>`;
       }).join("")}
     </tbody></table></div>`;
