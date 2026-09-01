@@ -127,6 +127,12 @@ const NovaDeclaracaoPage = {
               <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
             </div>
 
+            <div class="field">
+              <label>Anexar declaração</label>
+              <input type="file" id="arquivo" accept=".pdf,image/*">
+              <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
+            </div>
+
             <div class="form-actions">
               <a href="declaracoes.html" class="btn btn-secondary">Cancelar</a>
               <button type="submit" class="btn btn-primary">Salvar declaração</button>
@@ -149,21 +155,23 @@ const NovaDeclaracaoPage = {
     const renderCampos = () => {
       if (tipo.value === "horas") {
         campos.innerHTML = `
-          <div class="grid-3">
-            <div class="field">
-              <label>Data *</label>
-              <input type="date" id="data" required>
-            </div>
-            <div class="field">
-              <label>Horário inicial</label>
-              <input type="time" id="horaInicial">
-            </div>
-            <div class="field">
-              <label>Horário final</label>
-              <input type="time" id="horaFinal">
+          <div class="grid-2" style="margin-bottom: 1rem;">
+            <div class="grid-3" style="grid-column: span 2;">
+              <div class="field">
+                <label>Data *</label>
+                <input type="date" id="data" required>
+              </div>
+              <div class="field">
+                <label>Horário inicial</label>
+                <input type="time" id="horaInicial">
+              </div>
+              <div class="field">
+                <label>Horário final</label>
+                <input type="time" id="horaFinal">
+              </div>
             </div>
           </div>
-          <div class="grid-2">
+          <div class="grid-2" style="margin-bottom: 1rem;">
             <div class="field">
               <label>Quantidade de horas</label>
               <input type="number" id="quantidadeHoras" step="0.5" min="0" placeholder="Ex: 2">
@@ -172,7 +180,7 @@ const NovaDeclaracaoPage = {
         `;
       } else {
         campos.innerHTML = `
-          <div class="grid-3">
+          <div class="grid-3" style="margin-bottom: 1rem;">
             <div class="field">
               <label>Data inicial *</label>
               <input type="date" id="dataInicial" required>
