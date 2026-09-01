@@ -1,12 +1,24 @@
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
+}
+
 const DeclaracoesPage = {
   async init() {
     try {
       const [declaracoes, funcionarios] = await Promise.all([
-        App.getAll("declaracoes"),
-        App.getAll("funcionarios")
+        App.getAll("declaracoes").catch(() => []),
+        App.getAll("funcionarios").catch(() => [])
       ]);
 
-      const funcMap = Object.fromEntries(funcionarios.map(f => [f.id, f]));
+      const funcMap = {};
+      if (Array.isArray(funcionarios)) {
+        funcionarios.forEach(f => { funcMap[f.id] = f; });
+      }
 
       App.layout("Declarações", "Listagem de todas as declarações registradas", `
         <div class="page-header">
@@ -22,19 +34,19 @@ const DeclaracoesPage = {
         <div class="card panel">
           <div class="panel-header">
             <h3>Registros</h3>
-            <span class="badge badge-hours">${declaracoes.length} no total</span>
+            <span class="badge badge-hours">${(declaracoes || []).length} no total</span>
           </div>
-          ${this.renderTable(declaracoes, funcMap)}
+          ${this.renderTable(declaracoes || [], funcMap)}
         </div>
       `);
     } catch (err) {
       console.error("Erro ao carregar declarações:", err);
-      App.toast("Erro ao carregar dados do banco", "danger");
+      App.toast("Erro ao carregar dados", "danger");
     }
   },
 
   renderTable(list, funcMap) {
-    if (!list.length) {
+    if (!list || !list.length) {
       return `<div class="empty"><strong>Nenhuma declaração encontrada</strong><p>Clique em "+ Nova Declaração" para cadastrar.</p></div>`;
     }
 
@@ -99,7 +111,7 @@ const DeclaracoesPage = {
       this.init();
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao excluir declaração: " + err.message, "danger");
+      App.toast("Erro ao excluir: " + err.message, "danger");
     }
   }
 };
@@ -107,7 +119,7 @@ const DeclaracoesPage = {
 const NovaDeclaracaoPage = {
   async init() {
     try {
-      const funcs = await App.getAll("funcionarios");
+      const funcs = await App.getAll("funcionarios").catch(() => []);
       App.layout("Nova Declaração", "Lançamento e anexação do documento", `
         <div class="card panel">
           <form id="declForm" class="form">
@@ -138,7 +150,6 @@ const NovaDeclaracaoPage = {
             <div class="field">
               <label for="arquivo">Anexar declaração</label>
               <input type="file" id="arquivo" class="input-file" accept=".pdf,image/*">
-              <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
             </div>
 
             <div class="form-actions">
@@ -151,8 +162,8 @@ const NovaDeclaracaoPage = {
 
       this.bindEvents();
     } catch (err) {
-      console.error("Erro ao inicializar página:", err);
-      App.toast("Erro ao carregar lista de funcionários", "danger");
+      console.error(err);
+      App.toast("Erro ao abrir formulário", "danger");
     }
   },
 
@@ -253,7 +264,7 @@ const NovaDeclaracaoPage = {
       setTimeout(() => window.location.href = "declaracoes.html", 1000);
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao salvar declaração: " + (err.message || err), "danger");
+      App.toast("Erro ao salvar declaração", "danger");
       btn.disabled = false;
     }
   }
@@ -272,7 +283,7 @@ const EditarDeclaracaoPage = {
     try {
       const [decl, funcs] = await Promise.all([
         App.get("declaracoes", id),
-        App.getAll("funcionarios")
+        App.getAll("funcionarios").catch(() => [])
       ]);
 
       if (!decl) {
@@ -326,8 +337,8 @@ const EditarDeclaracaoPage = {
 
       this.bindEvents(decl);
     } catch (err) {
-      console.error("Erro ao carregar declaração:", err);
-      App.toast("Erro ao carregar declaração", "danger");
+      console.error(err);
+      App.toast("Erro ao carregar formulário", "danger");
     }
   },
 
@@ -425,17 +436,8 @@ const EditarDeclaracaoPage = {
       setTimeout(() => window.location.href = "declaracoes.html", 1000);
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao atualizar declaração: " + (err.message || err), "danger");
+      App.toast("Erro ao atualizar declaração", "danger");
       btn.disabled = false;
     }
   }
 };
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-    reader.readAsDataURL(file);
-  });
-}
