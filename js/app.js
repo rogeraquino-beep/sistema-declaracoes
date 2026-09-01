@@ -146,57 +146,78 @@ const App = (() => {
   }
 
   // Supabase REST API
-  const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
   const API = SUPABASE_URL + "/rest/v1";
-async function api(path, options = {}) {
-  const headers = {
-    apikey: SUPABASE_KEY,
-    Authorization: `Bearer ${SUPABASE_KEY}`,
-    "Content-Type": "application/json",
-    ...(options.headers || {})
-  };
 
-  const res = await fetch(API + path, {
-    ...options,
-    headers
-  });
+  async function api(path, options = {}) {
+    const headers = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    };
 
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || "Erro no Supabase");
+    const res = await fetch(API + path, {
+      ...options,
+      headers
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || "Erro no Supabase");
+    }
+
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
   }
 
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  function fromDB(store, x) {
+    if (!x) return x;
+    if (store === "funcionarios") return { id: String(x.id), nome: x.nome_completo, matricula: x.matricula, cargo: x.cargo_funcao, setor: x.setor, vinculo: x.tipo_vinculo, dataAdmissao: x.data_admissao, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
+    if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes, arquivo: x.arquivo, nomeArquivo: x.nome_arquivo, tipoArquivo: x.tipo_arquivo, tamanhoArquivo: x.tamanho_arquivo, dataCadastro: x.data_cadastro };
+    if (store === "faltas") return { id: String(x.id), funcionarioId: String(x.funcionario_id), data: x.data, tipo: x.tipo, justificativa: x.justificativa, observacoes: x.observacoes, createdAt: x.created_at };
+    return { ...x, id: String(x.id) };
   }
-  function fromDB(store,x){
-    if(!x) return x;
-    if(store==="funcionarios") return {id:String(x.id),nome:x.nome_completo,matricula:x.matricula,cargo:x.cargo_funcao,setor:x.setor,vinculo:x.tipo_vinculo,dataAdmissao:x.data_admissao,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
-    if(store==="declaracoes") return {id:String(x.id),funcionarioId:String(x.funcionario_id),tipo:x.tipo,data:x.data,dataInicial:x.data_inicial,dataFinal:x.data_final,horaInicial:x.hora_inicial,horaFinal:x.hora_final,quantidadeHoras:x.quantidade_horas,quantidadeDias:x.quantidade_dias,observacoes:x.observacoes,arquivo:x.arquivo,nomeArquivo:x.nome_arquivo,tipoArquivo:x.tipo_arquivo,tamanhoArquivo:x.tamanho_arquivo,dataCadastro:x.data_cadastro};
-    if(store==="faltas") return {id:String(x.id),funcionarioId:String(x.funcionario_id),data:x.data,tipo:x.tipo,justificativa:x.justificativa,observacoes:x.observacoes,createdAt:x.created_at};
-    return {...x,id:String(x.id)};
+
+  function toDB(store, x) {
+    let payload = {};
+    if (store === "funcionarios") payload = { id: x.id || uid("fun"), nome_completo: x.nome, matricula: x.matricula, cargo_funcao: x.cargo, setor: x.setor, tipo_vinculo: x.vinculo, data_admissao: x.dataAdmissao || null, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
+    else if (store === "declaracoes") payload = { id: x.id || uid("dec"), funcionario_id: x.funcionarioId, tipo: x.tipo, data: x.data, data_inicial: x.dataInicial || null, data_final: x.dataFinal || null, hora_inicial: x.horaInicial || null, hora_final: x.horaFinal || null, quantidade_horas: x.quantidadeHoras || 0, quantidade_dias: x.quantidadeDias || 0, observacoes: x.observacoes || null, arquivo: x.arquivo || null, nome_arquivo: x.nomeArquivo || null, tipo_arquivo: x.tipoArquivo || null, tamanho_arquivo: x.tamanhoArquivo || 0, data_cadastro: x.dataCadastro || new Date().toISOString() };
+    else if (store === "faltas") payload = { id: x.id || uid("fal"), funcionario_id: x.funcionarioId, data: x.data, tipo: x.tipo || 'Falta', justificativa: x.justificativa || null, observacoes: x.observacoes || null };
+    else payload = { ...x, id: x.id || uid() };
+    return payload;
   }
-  function toDB(store,x){
-    if(store==="funcionarios") return {nome_completo:x.nome,matricula:x.matricula,cargo_funcao:x.cargo,setor:x.setor,tipo_vinculo:x.vinculo,data_admissao:x.dataAdmissao||null,cpf:x.cpf,telefone:x.telefone,email:x.email,status:x.status,observacoes:x.observacoes};
-    if(store==="declaracoes") return {funcionario_id:x.funcionarioId,tipo:x.tipo,data:x.data,data_inicial:x.dataInicial||null,data_final:x.dataFinal||null,hora_inicial:x.horaInicial||null,hora_final:x.horaFinal||null,quantidade_horas:x.quantidadeHoras||0,quantidade_dias:x.quantidadeDias||0,observacoes:x.observacoes||null,arquivo:x.arquivo||null,nome_arquivo:x.nomeArquivo||null,tipo_arquivo:x.tipoArquivo||null,tamanho_arquivo:x.tamanhoArquivo||0,data_cadastro:x.dataCadastro||new Date().toISOString()};
-    if(store==="faltas") return {funcionario_id:x.funcionarioId,data:x.data,tipo:x.tipo||'Falta',justificativa:x.justificativa||null,observacoes:x.observacoes||null};
-    const y={...x}; delete y.id; return y;
+
+  async function add(store, value) {
+    const dataToSend = toDB(store, value);
+    const r = await api(`/${store}`, {
+      method: "POST",
+      headers: { "Prefer": "return=representation" },
+      body: JSON.stringify(dataToSend)
+    });
+    const item = Array.isArray(r) ? r[0] : r;
+    return fromDB(store, item || dataToSend);
   }
-  async function add(store,value){
-    const r=await api(`/${store}`,{method:"POST",headers:{Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))});
-    return fromDB(store,r[0]);
+
+  async function put(store, value) {
+    if (value.id) {
+      const dataToSend = toDB(store, value);
+      const r = await api(`/${store}?id=eq.${encodeURIComponent(value.id)}`, {
+        method: "PATCH",
+        headers: { "Prefer": "return=representation" },
+        body: JSON.stringify(dataToSend)
+      });
+      const item = Array.isArray(r) ? r[0] : r;
+      return fromDB(store, item || dataToSend);
+    }
+    return add(store, value);
   }
-  async function put(store,value){
-    if(value.id){ const r=await api(`/${store}?id=eq.${encodeURIComponent(value.id)}`,{method:"PATCH",headers:{Prefer:"return=representation"},body:JSON.stringify(toDB(store,value))}); return fromDB(store,r[0]); }
-    return add(store,value);
-  }
-  async function get(store,key){ const r=await api(`/${store}?id=eq.${encodeURIComponent(key)}&select=*`); return fromDB(store,r[0]||null); }
-  async function getAll(store){ const r=await api(`/${store}?select=*&order=id.asc`); return (r||[]).map(x=>fromDB(store,x)); }
-  async function remove(store,key){ await api(`/${store}?id=eq.${encodeURIComponent(key)}`,{method:"DELETE"}); return true; }
-  async function clearStore(store){ const all=await getAll(store); for(const x of all) await remove(store,x.id); return true; }
-  async function seedDemoData(){ return; }
-  function fileToDataURL(file){ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);}); }
+
+  async function get(store, key) { const r = await api(`/${store}?id=eq.${encodeURIComponent(key)}&select=*`); return fromDB(store, r?.[0] || null); }
+  async function getAll(store) { const r = await api(`/${store}?select=*&order=id.asc`); return (r || []).map(x => fromDB(store, x)); }
+  async function remove(store, key) { await api(`/${store}?id=eq.${encodeURIComponent(key)}`, { method: "DELETE" }); return true; }
+  async function clearStore(store) { const all = await getAll(store); for (const x of all) await remove(store, x.id); return true; }
+  async function seedDemoData() { return; }
+  function fileToDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }); }
 
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -209,9 +230,9 @@ async function api(path, options = {}) {
   async function exportBackup() {
     const funcionarios = await getAll("funcionarios");
     const declaracoes = await getAll("declaracoes");
-    const payload = {version:1, generatedAt:new Date().toISOString(), funcionarios, declaracoes};
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
-    downloadBlob(blob, `backup-sistema-declaracoes-${new Date().toISOString().slice(0,10)}.json`);
+    const payload = { version: 1, generatedAt: new Date().toISOString(), funcionarios, declaracoes };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    downloadBlob(blob, `backup-sistema-declaracoes-${new Date().toISOString().slice(0, 10)}.json`);
   }
 
   async function importBackup(file) {
@@ -355,9 +376,6 @@ const DashboardPage = {
   }
 };
 
-
-// Backup global: disponível pelo console e preparado para futura área de configurações.
-// FUTURO: adicionar uma página de configurações para exibir explicitamente estes controles.
 window.backupSistema = {
   exportar: App.exportBackup,
   importar: async (file) => {

@@ -1,4 +1,3 @@
-
 const FuncionariosPage = {
   funcionarios: [],
   async init() {
@@ -16,7 +15,7 @@ const FuncionariosPage = {
       </section>
     `);
     this.funcionarios = await App.getAll("funcionarios");
-    document.getElementById("searchFuncionario").addEventListener("input", e => this.render(e.target.value));
+    document.getElementById("searchFuncionario")?.addEventListener("input", e => this.render(e.target.value));
     this.render("");
   },
   render(query="") {
@@ -24,6 +23,7 @@ const FuncionariosPage = {
     const rows = this.funcionarios.filter(f => [f.nome,f.matricula,f.cargo,f.setor,f.vinculo].some(v => String(v||"").toLowerCase().includes(q)))
       .sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
     const root = document.getElementById("funcionariosTable");
+    if (!root) return;
     if (!rows.length) {
       root.innerHTML = `<div class="empty"><strong>Nenhum funcionário encontrado</strong>Tente outro termo de pesquisa.</div>`;
       return;
@@ -60,7 +60,7 @@ const FuncionariosPage = {
       body:`<div class="alert alert-danger">Tem certeza que deseja excluir <strong>${App.escapeHTML(f.nome)}</strong>? ${decs.length ? `Este funcionário possui ${decs.length} declaração(ões) e elas também serão excluídas.` : ""}</div>`,
       footer:`<button class="btn btn-secondary" data-close-modal>Cancelar</button><button class="btn btn-danger" id="confirmDeleteFun">Excluir</button>`
     });
-    document.getElementById("confirmDeleteFun").addEventListener("click", async ()=>{
+    document.getElementById("confirmDeleteFun")?.addEventListener("click", async ()=>{
       for (const d of decs) await App.remove("declaracoes", d.id);
       await App.remove("funcionarios", id);
       App.closeModal();
@@ -106,7 +106,7 @@ const NovoFuncionarioPage = {
         </form>
       </section>
     `);
-    document.getElementById("funcionarioForm").addEventListener("submit", e => this.save(e));
+    document.getElementById("funcionarioForm")?.addEventListener("submit", e => this.save(e));
   },
   input(name,label,value="",required=false,type="text"){
     if(type==="textarea") return `<div class="form-group full"><label class="form-label">${label}</label><textarea class="textarea" name="${name}">${App.escapeHTML(value)}</textarea></div>`;
@@ -133,9 +133,12 @@ const NovoFuncionarioPage = {
     const all = await App.getAll("funcionarios");
     const duplicate = all.find(x=>x.matricula===record.matricula && x.id!==record.id);
     if (duplicate) { App.toast("Já existe funcionário com essa matrícula.", "warning"); return; }
+    
+    // Tenta gravar no banco e extrai o ID com segurança
     const saved = await App.put("funcionarios", record);
-    record.id = saved.id;
+    const finalId = saved?.id || record.id;
+    
     App.toast(this.editingId ? "Funcionário atualizado com sucesso!" : "Funcionário cadastrado com sucesso!");
-    setTimeout(()=>location.href = `funcionario.html?id=${encodeURIComponent(record.id)}`, 500);
+    setTimeout(()=>location.href = `funcionario.html?id=${encodeURIComponent(finalId)}`, 500);
   }
 };
