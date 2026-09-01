@@ -11,25 +11,20 @@ function fileToBase64(file) {
   });
 }
 
-// Função para extrair dinamicamente um ID válido do objeto funcionário
+// Extrai um ID válido do objeto funcionário
 function extrairIdFuncionario(f) {
   if (!f || typeof f !== 'object') return "";
-
-  // Procura primeiro nas propriedades mais comuns
   const possiveisChaves = ['id', 'funcionario_id', 'id_funcionario', 'codigo', 'cpf', 'matricula'];
   for (const key of possiveisChaves) {
     if (f[key] !== undefined && f[key] !== null && String(f[key]).trim() !== "") {
       return f[key];
     }
   }
-
-  // Se não encontrou nas chaves padrão, pega a primeira propriedade que não seja 'nome'
   for (const [key, value] of Object.entries(f)) {
     if (key !== 'nome' && key !== 'nome_funcionario' && value !== null && value !== undefined && String(value).trim() !== "") {
       return value;
     }
   }
-
   return "";
 }
 
@@ -98,7 +93,7 @@ const DeclaracoesPage = {
           </thead>
           <tbody>
             ${rows.map(d => {
-              const fKey = d.funcionario_id || d.funcionarioId;
+              const fKey = d.funcionario_id || d.id_funcionario || d.funcionarioId || d.funcionario;
               const f = funcMap[fKey];
               const isHoras = d.tipo === "horas";
               const dataInicial = d.data_inicial || d.dataInicial || d.data;
@@ -162,9 +157,6 @@ const NovaDeclaracaoPage = {
 
     try {
       this.funcionariosLista = await App.getAll("funcionarios").catch(() => []);
-      
-      console.log("=== ESTRUTURA DOS FUNCIONÁRIOS RETORNADOS DA TABELA ===");
-      console.log(this.funcionariosLista);
 
       let decl = null;
       if (id) {
@@ -172,7 +164,7 @@ const NovaDeclaracaoPage = {
       }
 
       const isEdit = !!decl;
-      const funcIdAtual = decl?.funcionario_id || decl?.funcionarioId;
+      const funcIdAtual = decl?.funcionario_id || decl?.id_funcionario || decl?.funcionarioId || decl?.funcionario;
       const anexoAtual = decl?.arquivo_url || decl?.arquivoUrl || decl?.arquivo_base64 || decl?.arquivoBase64;
 
       App.layout(
@@ -305,7 +297,6 @@ const NovaDeclaracaoPage = {
     const selectEl = document.getElementById("funcionarioSelect");
     let rawFuncId = selectEl ? selectEl.value : "";
 
-    // Se a opção selecionada não tinha valor no value, recupera o funcionário original do array pelo index
     if ((!rawFuncId || rawFuncId === "" || rawFuncId === "null" || rawFuncId === "undefined") && selectEl.selectedIndex >= 0) {
       const selectedOption = selectEl.options[selectEl.selectedIndex];
       const idx = selectedOption.getAttribute("data-index");
@@ -314,9 +305,8 @@ const NovaDeclaracaoPage = {
       }
     }
 
-    // Trava de Segurança
     if (!rawFuncId || String(rawFuncId).trim() === "" || rawFuncId === "null" || rawFuncId === "undefined") {
-      App.toast("Erro: Não foi possível identificar o ID do funcionário selecionado. Verifique o cadastro do funcionário.", "danger");
+      App.toast("Selecione um funcionário válido.", "danger");
       return;
     }
 
@@ -336,8 +326,11 @@ const NovaDeclaracaoPage = {
       const funcIdParsed = (!isNaN(rawFuncId) && String(rawFuncId).trim() !== "") ? Number(rawFuncId) : rawFuncId;
       const obs = document.getElementById("observacoes").value || "";
 
+      // Envia os campos em todas as nomenclaturas comuns para garantir compatibilidade total com o Supabase
       const payload = {
         funcionario_id: funcIdParsed,
+        id_funcionario: funcIdParsed,
+        funcionario: funcIdParsed,
         tipo: tipo,
         observacoes: obs,
         arquivo_base64: anexoData,
