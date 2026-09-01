@@ -1,3 +1,101 @@
+const DeclaracoesPage = {
+  async init() {
+    try {
+      const [declaracoes, funcionarios] = await Promise.all([
+        App.getAll("declaracoes"),
+        App.getAll("funcionarios")
+      ]);
+
+      const funcMap = Object.fromEntries(funcionarios.map(f => [f.id, f]));
+
+      App.layout("Declarações", "Listagem de todas as declarações registradas", `
+        <div class="page-header">
+          <div>
+            <h2>Lista de Declarações</h2>
+            <p>Gerencie e consulte os documentos de horas e dias.</p>
+          </div>
+          <div class="actions no-print">
+            <a href="nova-declaracao.html" class="btn btn-primary">＋ Nova Declaração</a>
+          </div>
+        </div>
+
+        <div class="card panel">
+          <div class="panel-header">
+            <h3>Registros</h3>
+            <span class="badge badge-hours">${declaracoes.length} no total</span>
+          </div>
+          ${this.renderTable(declaracoes, funcMap)}
+        </div>
+      `);
+    } catch (err) {
+      console.error("Erro ao carregar declarações:", err);
+      App.toast("Erro ao carregar dados do banco", "danger");
+    }
+  },
+
+  renderTable(list, funcMap) {
+    if (!list.length) {
+      return `<div class="empty"><strong>Nenhuma declaração encontrada</strong><p>Clique em "+ Nova Declaração" para cadastrar.</p></div>`;
+    }
+
+    const rows = [...list].sort((a, b) => Number(b.id) - Number(a.id));
+
+    return `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Funcionário</th>
+              <th>Tipo</th>
+              <th>Data / Período</th>
+              <th>Qtd.</th>
+              <th>Observações</th>
+              <th class="no-print">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(d => {
+              const f = funcMap[d.funcionarioId];
+              const isHoras = d.tipo === "horas";
+              const periodo = isHoras 
+                ? App.formatDate(d.data) 
+                : `${App.formatDate(d.dataInicial || d.data)} até ${App.formatDate(d.dataFinal || d.dataInicial || d.data)}`;
+              const qtd = isHoras ? `${d.quantidadeHoras || 0}h` : `${d.quantidadeDias || 0} dia(s)`;
+
+              return `
+                <tr>
+                  <td><code>#${d.id}</code></td>
+                  <td><strong>${App.escapeHTML(f?.nome || "Funcionário não encontrado")}</strong></td>
+                  <td><span class="badge ${isHoras ? "badge-hours" : "badge-days"}">${isHoras ? "Horas" : "Dias"}</span></td>
+                  <td>${periodo}</td>
+                  <td>${qtd}</td>
+                  <td>${App.escapeHTML(d.observacoes || "—")}</td>
+                  <td class="no-print">
+                    <button class="btn btn-danger btn-sm" onclick="DeclaracoesPage.deleteItem('${d.id}')">Excluir</button>
+                  </td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  async deleteItem(id) {
+    if (!confirm("Tem certeza que deseja excluir esta declaração?")) return;
+    try {
+      await App.remove("declaracoes", id);
+      App.toast("Declaração excluída com sucesso!");
+      this.init();
+    } catch (err) {
+      console.error(err);
+      App.toast("Erro ao excluir declaração: " + err.message, "danger");
+    }
+  }
+};
+
 const NovaDeclaracaoPage = {
   async init() {
     try {
@@ -27,12 +125,6 @@ const NovaDeclaracaoPage = {
             <div class="field">
               <label>Observações</label>
               <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
-            </div>
-
-            <div class="field">
-              <label>Anexar declaração</label>
-              <input type="file" id="arquivo" accept=".pdf,image/*">
-              <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
             </div>
 
             <div class="form-actions">
@@ -116,23 +208,10 @@ const NovaDeclaracaoPage = {
 
     try {
       const tipo = document.getElementById("tipo").value;
-      const fileInput = document.getElementById("arquivo");
-      let fileData = {};
-
-      if (fileInput.files && fileInput.files[0]) {
-        const file = fileInput.files[0];
-        fileData = {
-          nomeArquivo: file.name,
-          tipoArquivo: file.type,
-          tamanhoArquivo: file.size
-        };
-      }
-
       const payload = {
         funcionarioId: document.getElementById("funcionarioId").value,
         tipo: tipo,
-        observacoes: document.getElementById("observacoes").value,
-        ...fileData
+        observacoes: document.getElementById("observacoes").value
       };
 
       if (tipo === "horas") {
