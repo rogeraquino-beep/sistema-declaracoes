@@ -154,7 +154,7 @@ const App = (() => {
     let payload = {};
     if (store === "funcionarios") {
       payload = { 
-        id: x.id ? x.id : Date.now(),
+        id: x.id ? String(x.id) : crypto.randomUUID(),
         nome_completo: x.nome, 
         matricula: x.matricula, 
         cargo_funcao: x.cargo, 
@@ -170,8 +170,8 @@ const App = (() => {
     } 
     else if (store === "declaracoes") {
       payload = { 
-        id: x.id ? x.id : Date.now(),
-        funcionario_id: x.funcionarioId, 
+        id: x.id ? String(x.id) : crypto.randomUUID(),
+        funcionario_id: String(x.funcionarioId), 
         tipo: x.tipo, 
         data: x.data, 
         data_inicial: x.dataInicial || null, 
@@ -190,8 +190,8 @@ const App = (() => {
     } 
     else if (store === "faltas") {
       payload = { 
-        id: x.id ? x.id : Date.now(),
-        funcionario_id: x.funcionarioId, 
+        id: x.id ? String(x.id) : crypto.randomUUID(),
+        funcionario_id: String(x.funcionarioId), 
         data: x.data, 
         tipo: x.tipo || 'Falta', 
         justificativa: x.justificativa || null, 
@@ -200,7 +200,7 @@ const App = (() => {
     } 
     else {
       payload = { ...x };
-      if (!payload.id) payload.id = Date.now();
+      if (!payload.id) payload.id = crypto.randomUUID();
     }
     return payload;
   }
