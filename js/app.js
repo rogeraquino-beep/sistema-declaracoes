@@ -1,4 +1,10 @@
-
+const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
+const HEADERS = {
+  "apikey": SUPABASE_KEY,
+  "Authorization": `Bearer ${SUPABASE_KEY}`,
+  "Content-Type": "application/json"
+};
 const App = (() => {
   const DB_NAME = "sistemaDeclaracoesDB";
   const DB_VERSION = 1;
@@ -143,10 +149,26 @@ const App = (() => {
   const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
   const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
   const API = SUPABASE_URL + "/rest/v1";
-  async function api(path, options={}) {
-    const res = await fetch(API + path, {headers:{apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, "Content-Type":"application/json", ...(options.headers||{})}, ...options});
-    if(!res.ok){ const t=await res.text(); throw new Error(t||"Erro no Supabase"); }
-    const text=await res.text(); return text?JSON.parse(text):null;
+async function api(path, options = {}) {
+  const headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+
+  const res = await fetch(API + path, {
+    ...options,
+    headers
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || "Erro no Supabase");
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
   }
   function fromDB(store,x){
     if(!x) return x;
