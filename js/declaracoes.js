@@ -105,15 +105,15 @@ const NovaDeclaracaoPage = {
           <form id="declForm" class="form">
             <div class="grid-2">
               <div class="field">
-                <label>Funcionário *</label>
-                <select id="funcionarioId" required>
+                <label for="funcionarioId">Funcionário *</label>
+                <select id="funcionarioId" class="input" required>
                   <option value="">Selecione...</option>
                   ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
                 </select>
               </div>
               <div class="field">
-                <label>Tipo de declaração *</label>
-                <select id="tipo" required>
+                <label for="tipo">Tipo de declaração *</label>
+                <select id="tipo" class="input" required>
                   <option value="horas">Declaração de Horas</option>
                   <option value="dias">Declaração de Dias</option>
                 </select>
@@ -123,13 +123,13 @@ const NovaDeclaracaoPage = {
             <div id="camposDinamicos"></div>
 
             <div class="field">
-              <label>Observações</label>
-              <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
+              <label for="observacoes">Observações</label>
+              <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais..."></textarea>
             </div>
 
             <div class="field">
-              <label>Anexar declaração</label>
-              <input type="file" id="arquivo" accept=".pdf,image/*">
+              <label for="arquivo">Anexar declaração</label>
+              <input type="file" id="arquivo" class="input-file" accept=".pdf,image/*">
               <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
             </div>
 
@@ -155,43 +155,41 @@ const NovaDeclaracaoPage = {
     const renderCampos = () => {
       if (tipo.value === "horas") {
         campos.innerHTML = `
-          <div class="grid-2" style="margin-bottom: 1rem;">
-            <div class="grid-3" style="grid-column: span 2;">
-              <div class="field">
-                <label>Data *</label>
-                <input type="date" id="data" required>
-              </div>
-              <div class="field">
-                <label>Horário inicial</label>
-                <input type="time" id="horaInicial">
-              </div>
-              <div class="field">
-                <label>Horário final</label>
-                <input type="time" id="horaFinal">
-              </div>
+          <div class="grid-3">
+            <div class="field">
+              <label for="data">Data *</label>
+              <input type="date" id="data" class="input" required>
+            </div>
+            <div class="field">
+              <label for="horaInicial">Horário inicial</label>
+              <input type="time" id="horaInicial" class="input">
+            </div>
+            <div class="field">
+              <label for="horaFinal">Horário final</label>
+              <input type="time" id="horaFinal" class="input">
             </div>
           </div>
-          <div class="grid-2" style="margin-bottom: 1rem;">
+          <div class="grid-2">
             <div class="field">
-              <label>Quantidade de horas</label>
-              <input type="number" id="quantidadeHoras" step="0.5" min="0" placeholder="Ex: 2">
+              <label for="quantidadeHoras">Quantidade de horas</label>
+              <input type="number" id="quantidadeHoras" class="input" step="0.5" min="0" placeholder="Ex: 2">
             </div>
           </div>
         `;
       } else {
         campos.innerHTML = `
-          <div class="grid-3" style="margin-bottom: 1rem;">
+          <div class="grid-3">
             <div class="field">
-              <label>Data inicial *</label>
-              <input type="date" id="dataInicial" required>
+              <label for="dataInicial">Data inicial *</label>
+              <input type="date" id="dataInicial" class="input" required>
             </div>
             <div class="field">
-              <label>Data final</label>
-              <input type="date" id="dataFinal">
+              <label for="dataFinal">Data final</label>
+              <input type="date" id="dataFinal" class="input">
             </div>
             <div class="field">
-              <label>Quantidade de dias</label>
-              <input type="number" id="quantidadeDias" step="1" min="1" placeholder="Ex: 1">
+              <label for="quantidadeDias">Quantidade de dias</label>
+              <input type="number" id="quantidadeDias" class="input" step="1" min="1" placeholder="Ex: 1">
             </div>
           </div>
         `;
