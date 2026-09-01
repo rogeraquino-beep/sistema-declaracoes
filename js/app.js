@@ -1,15 +1,7 @@
 const SUPABASE_URL = "https://cujlebxqqposqomtfvdk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
-const HEADERS = {
-  "apikey": SUPABASE_KEY,
-  "Authorization": `Bearer ${SUPABASE_KEY}`,
-  "Content-Type": "application/json"
-};
 
 const App = (() => {
-  const DB_NAME = "sistemaDeclaracoesDB";
-  const DB_VERSION = 1;
-
   const NAV = [
     { key: "dashboard", href: "index.html", icon: "⌂", label: "Dashboard" },
     { key: "funcionarios", href: "funcionarios.html", icon: "👥", label: "Funcionários" },
@@ -19,10 +11,6 @@ const App = (() => {
     { key: "faltas", href: "faltas.html", icon: "📅", label: "Faltas" },
     { key: "relatorios", href: "relatorios.html", icon: "▥", label: "Relatórios" }
   ];
-
-  function uid(prefix = "id") {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-  }
 
   function escapeHTML(value = "") {
     return String(value)
@@ -35,18 +23,6 @@ const App = (() => {
     const [y,m,d] = String(dateValue).slice(0,10).split("-");
     if (!y || !m || !d) return dateValue;
     return `${d}/${m}/${y}`;
-  }
-
-  function formatBytes(bytes=0) {
-    if (!bytes) return "0 KB";
-    const units = ["B","KB","MB","GB"];
-    let i = 0, n = bytes;
-    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-    return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-  }
-
-  function initials(name = "") {
-    return name.trim().split(/\s+/).slice(0,2).map(part => part[0]?.toUpperCase() || "").join("") || "FN";
   }
 
   function getPageKey() {
@@ -155,10 +131,7 @@ const App = (() => {
       ...(options.headers || {})
     };
 
-    const res = await fetch(API + path, {
-      ...options,
-      headers
-    });
+    const res = await fetch(API + path, { ...options, headers });
 
     if (!res.ok) {
       const t = await res.text();
@@ -180,30 +153,67 @@ const App = (() => {
   function toDB(store, x) {
     let payload = {};
     if (store === "funcionarios") {
-      payload = { nome_completo: x.nome, matricula: x.matricula, cargo_funcao: x.cargo, setor: x.setor, tipo_vinculo: x.vinculo, data_admissao: x.dataAdmissao || null, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
-      if (x.id) payload.id = x.id;
-    } else if (store === "declaracoes") {
-      payload = { funcionario_id: x.funcionarioId, tipo: x.tipo, data: x.data, data_inicial: x.dataInicial || null, data_final: x.dataFinal || null, hora_inicial: x.horaInicial || null, hora_final: x.horaFinal || null, quantidade_horas: x.quantidadeHoras || 0, quantidade_dias: x.quantidadeDias || 0, observacoes: x.observacoes || null, arquivo: x.arquivo || null, nome_arquivo: x.nomeArquivo || null, tipo_arquivo: x.tipoArquivo || null, tamanho_arquivo: x.tamanhoArquivo || 0, data_cadastro: x.dataCadastro || new Date().toISOString() };
-      if (x.id) payload.id = x.id;
-    } else if (store === "faltas") {
-      payload = { funcionario_id: x.funcionarioId, data: x.data, tipo: x.tipo || 'Falta', justificativa: x.justificativa || null, observacoes: x.observacoes || null };
-      if (x.id) payload.id = x.id;
-    } else {
+      payload = { 
+        id: x.id ? x.id : Date.now(),
+        nome_completo: x.nome, 
+        matricula: x.matricula, 
+        cargo_funcao: x.cargo, 
+        setor: x.setor, 
+        tipo_vinculo: x.vinculo, 
+        data_admissao: x.dataAdmissao || null, 
+        cpf: x.cpf, 
+        telefone: x.telefone, 
+        email: x.email, 
+        status: x.status, 
+        observacoes: x.observacoes 
+      };
+    } 
+    else if (store === "declaracoes") {
+      payload = { 
+        id: x.id ? x.id : Date.now(),
+        funcionario_id: x.funcionarioId, 
+        tipo: x.tipo, 
+        data: x.data, 
+        data_inicial: x.dataInicial || null, 
+        data_final: x.dataFinal || null, 
+        hora_inicial: x.horaInicial || null, 
+        hora_final: x.horaFinal || null, 
+        quantidade_horas: x.quantidadeHoras || 0, 
+        quantidade_dias: x.quantidadeDias || 0, 
+        observacoes: x.observacoes || null, 
+        arquivo: x.arquivo || null, 
+        nome_arquivo: x.nomeArquivo || null, 
+        tipo_arquivo: x.tipoArquivo || null, 
+        tamanho_arquivo: x.tamanhoArquivo || 0, 
+        data_cadastro: x.dataCadastro || new Date().toISOString() 
+      };
+    } 
+    else if (store === "faltas") {
+      payload = { 
+        id: x.id ? x.id : Date.now(),
+        funcionario_id: x.funcionarioId, 
+        data: x.data, 
+        tipo: x.tipo || 'Falta', 
+        justificativa: x.justificativa || null, 
+        observacoes: x.observacoes || null 
+      };
+    } 
+    else {
       payload = { ...x };
+      if (!payload.id) payload.id = Date.now();
     }
     return payload;
   }
 
   async function add(store, value) {
     const dataToSend = toDB(store, value);
-    delete dataToSend.id;
     const r = await api(`/${store}`, {
       method: "POST",
       headers: { "Prefer": "return=representation" },
       body: JSON.stringify(dataToSend)
     });
     const item = Array.isArray(r) ? r[0] : r;
-    return fromDB(store, item || value);
+    return fromDB(store, item || dataToSend);
   }
 
   async function put(store, value) {
@@ -231,37 +241,7 @@ const App = (() => {
   }
   
   async function remove(store, key) { await api(`/${store}?id=eq.${encodeURIComponent(key)}`, { method: "DELETE" }); return true; }
-  async function clearStore(store) { const all = await getAll(store); for (const x of all) await remove(store, x.id); return true; }
   async function seedDemoData() { return; }
-  function fileToDataURL(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); }); }
-
-  function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  async function exportBackup() {
-    const funcionarios = await getAll("funcionarios");
-    const declaracoes = await getAll("declaracoes");
-    const payload = { version: 1, generatedAt: new Date().toISOString(), funcionarios, declaracoes };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    downloadBlob(blob, `backup-sistema-declaracoes-${new Date().toISOString().slice(0, 10)}.json`);
-  }
-
-  async function importBackup(file) {
-    const text = await file.text();
-    const payload = JSON.parse(text);
-    if (!payload || !Array.isArray(payload.funcionarios) || !Array.isArray(payload.declaracoes)) {
-      throw new Error("Formato de backup inválido.");
-    }
-    await clearStore("funcionarios");
-    await clearStore("declaracoes");
-    for (const f of payload.funcionarios) await add("funcionarios", f);
-    for (const d of payload.declaracoes) await add("declaracoes", d);
-  }
 
   async function counts() {
     const funcionarios = await getAll("funcionarios");
@@ -277,10 +257,8 @@ const App = (() => {
   }
 
   return {
-    NAV, uid, escapeHTML, formatDate, formatBytes, initials,
-    getPageKey, layout, openModal, closeModal, toast,
-    add, put, get, getAll, remove, clearStore, seedDemoData,
-    fileToDataURL, downloadBlob, exportBackup, importBackup, counts
+    escapeHTML, formatDate, getPageKey, layout, openModal, closeModal, toast,
+    add, put, get, getAll, remove, seedDemoData, counts
   };
 })();
 
@@ -323,51 +301,13 @@ const DashboardPage = {
             <a href="declaracoes.html">📄 Consultar declarações</a>
             <a href="relatorios.html">▥ Abrir relatórios</a>
             <a href="nova-declaracao.html">＋ Lançar documento</a>
-            <a href="#" id="exportBackupLink">⇩ Exportar backup</a>
-            <a href="#" id="importBackupLink">⇧ Importar backup</a>
           </div>
-          <input type="file" id="backupInput" accept=".json,application/json" class="hidden">
           <div style="margin-top:16px" class="alert alert-warning">
             Dados salvos online no Supabase.
           </div>
         </section>
       </div>
     `);
-
-    document.getElementById("exportBackupLink")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        await App.exportBackup();
-        App.toast("Backup exportado com sucesso.");
-      } catch (err) {
-        console.error(err);
-        App.toast("Não foi possível exportar o backup.", "danger");
-      }
-    });
-
-    document.getElementById("importBackupLink")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      document.getElementById("backupInput")?.click();
-    });
-
-    document.getElementById("backupInput")?.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      try {
-        if (!confirm("Importar este backup substituirá os dados atuais do navegador. Deseja continuar?")) {
-          e.target.value = "";
-          return;
-        }
-        await App.importBackup(file);
-        App.toast("Backup restaurado com sucesso.");
-        setTimeout(() => location.reload(), 600);
-      } catch (err) {
-        console.error(err);
-        App.toast("Backup inválido ou impossível de restaurar.", "danger");
-      } finally {
-        e.target.value = "";
-      }
-    });
   },
   statCard(label, value, icon) {
     return `<div class="card stat-card"><div><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div><div class="stat-icon">${icon}</div></div>`;
@@ -376,7 +316,7 @@ const DashboardPage = {
     const map = Object.fromEntries(funcs.map(f => [f.id, f]));
     const rows = [...list].sort((a,b) => String(b.dataCadastro||"").localeCompare(String(a.dataCadastro||""))).slice(0,8);
     if (!rows.length) return `<div class="empty"><strong>Nenhuma declaração</strong>Cadastre a primeira declaração para começar.</div>`;
-    return `<div class="table-wrap"><table><thead><tr><th>Funcionário</th><th>Tipo</th><th>Data</th><th>Quantidade</th><th>Documento</th><th>Ações</th></tr></thead><tbody>
+    return `<div class="table-wrap"><table><thead><tr><th>Funcionário</th><th>Tipo</th><th>Data</th><th>Quantidade</th><th>Documento</th></tr></thead><tbody>
       ${rows.map(d => {
         const f = map[d.funcionarioId];
         return `<tr>
@@ -385,17 +325,8 @@ const DashboardPage = {
           <td>${App.formatDate(d.data)}</td>
           <td>${d.tipo==="horas"?`${d.quantidadeHoras||0} h`:`${d.quantidadeDias||0} dia(s)`}</td>
           <td>${d.nomeArquivo?App.escapeHTML(d.nomeArquivo):"—"}</td>
-          <td><button class="btn btn-secondary btn-sm" onclick="DeclaracoesPage.visualizar('${d.id}')">Visualizar</button></td>
         </tr>`;
       }).join("")}
     </tbody></table></div>`;
-  }
-};
-
-window.backupSistema = {
-  exportar: App.exportBackup,
-  importar: async (file) => {
-    await App.importBackup(file);
-    location.reload();
   }
 };
