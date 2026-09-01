@@ -3,22 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Nova declaração - Sistema de Declarações">
-  <title>Nova Declaração | Sistema de Declarações</title>
+  <meta name="description" content="Declarações - Sistema de Declarações">
+  <title>Declarações | Sistema de Declarações</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-page="nova-declaracao">
+<body data-page="declaracoes">
   <div id="app"></div>
-  <script src="js/app.js?v=70"></script>
-  <script src="js/declaracoes.js?v=70"></script>
+  <script src="js/app.js?v=80"></script>
+  <script src="js/declaracoes.js?v=80"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      if (typeof NovaDeclaracaoPage !== "undefined") {
-        NovaDeclaracaoPage.init();
-      } else {
-        console.error("NovaDeclaracaoPage não foi encontrada no js/declaracoes.js");
-      }
-    });
+    document.addEventListener("DOMContentLoaded", () => DeclaracoesPage.init());
   </script>
 </body>
 </html>

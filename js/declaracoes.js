@@ -21,7 +21,10 @@ const DeclaracoesPage = {
 
       const funcMap = {};
       if (Array.isArray(funcionarios)) {
-        funcionarios.forEach(f => { funcMap[f.id] = f; });
+        funcionarios.forEach(f => { 
+          const key = f.id || f.funcionario_id || f.matricula;
+          if (key) funcMap[key] = f;
+        });
       }
 
       App.layout("Declarações", "Listagem de todas as declarações registradas", `
@@ -73,7 +76,8 @@ const DeclaracoesPage = {
           </thead>
           <tbody>
             ${rows.map(d => {
-              const f = funcMap[d.funcionario_id || d.funcionarioId];
+              const fKey = d.funcionario_id || d.funcionarioId;
+              const f = funcMap[fKey];
               const isHoras = d.tipo === "horas";
               const dataInicial = d.data_inicial || d.dataInicial || d.data;
               const dataFinal = d.data_final || d.dataFinal || dataInicial;
@@ -156,8 +160,10 @@ const NovaDeclaracaoPage = {
                 <select id="funcionarioSelect" name="funcionario_id" class="input" required>
                   <option value="">Selecione...</option>
                   ${funcs.map(f => {
-                    const selected = decl && (funcIdAtual == f.id || String(funcIdAtual) === String(f.id)) ? "selected" : "";
-                    return `<option value="${f.id}" ${selected}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`;
+                    // Pega o ID correto independente de ser f.id, f.funcionario_id ou outro
+                    const realId = f.id !== undefined && f.id !== null && f.id !== "" ? f.id : (f.funcionario_id || f.matricula);
+                    const selected = decl && (funcIdAtual == realId || String(funcIdAtual) === String(realId)) ? "selected" : "";
+                    return `<option value="${realId}" ${selected}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`;
                   }).join("")}
                 </select>
               </div>
@@ -271,8 +277,8 @@ const NovaDeclaracaoPage = {
     const selectEl = document.getElementById("funcionarioSelect");
     const rawFuncId = selectEl ? selectEl.value : "";
 
-    if (!rawFuncId) {
-      App.toast("Por favor, selecione um funcionário.", "danger");
+    if (!rawFuncId || rawFuncId === "undefined" || rawFuncId === "null") {
+      App.toast("Por favor, selecione um funcionário válido.", "danger");
       return;
     }
 
@@ -289,12 +295,10 @@ const NovaDeclaracaoPage = {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
-      // Converte o ID se for estritamente numérico, ou mantém como string caso seja um UUID
       const funcIdParsed = (!isNaN(rawFuncId) && rawFuncId.trim() !== "") ? Number(rawFuncId) : rawFuncId;
 
       const obs = document.getElementById("observacoes").value || "";
 
-      // Objeto formatado com os nomes exatos das colunas do Supabase
       const payload = {
         funcionario_id: funcIdParsed,
         tipo: tipo,
