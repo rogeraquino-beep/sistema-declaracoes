@@ -278,10 +278,12 @@ const NovaDeclaracaoPage = {
       }
 
       const rawFuncId = document.getElementById("funcionarioId").value;
-      const funcId = rawFuncId ? Number(rawFuncId) : null;
-      const obs = document.getElementById("observacoes").value;
+      // Trata o ID mantendo o tipo exato (numérico ou string/UUID se não for convertível)
+      const funcId = !isNaN(rawFuncId) && rawFuncId !== "" ? Number(rawFuncId) : rawFuncId;
 
-      // Monta o payload 100% no padrão de colunas do Supabase (snake_case)
+      const obs = document.getElementById("observacoes").value || "";
+
+      // Payload ajustado para a tabela declaracoes no Supabase
       const payload = {
         funcionario_id: funcId,
         tipo: tipo,
