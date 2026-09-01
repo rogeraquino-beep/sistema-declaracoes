@@ -152,10 +152,13 @@ const NovaDeclaracaoPage = {
           <form id="declForm" class="form">
             <div class="grid-2">
               <div class="field">
-                <label for="funcionarioId">Funcionário *</label>
-                <select id="funcionarioId" class="input" required>
+                <label for="funcionarioSelect">Funcionário *</label>
+                <select id="funcionarioSelect" name="funcionario_id" class="input" required>
                   <option value="">Selecione...</option>
-                  ${funcs.map(f => `<option value="${f.id}" ${decl && funcIdAtual == f.id ? "selected" : ""}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
+                  ${funcs.map(f => {
+                    const selected = decl && (funcIdAtual == f.id || String(funcIdAtual) === String(f.id)) ? "selected" : "";
+                    return `<option value="${f.id}" ${selected}>${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`;
+                  }).join("")}
                 </select>
               </div>
               <div class="field">
@@ -264,6 +267,15 @@ const NovaDeclaracaoPage = {
 
   async save(e, declAntiga) {
     e.preventDefault();
+
+    const selectEl = document.getElementById("funcionarioSelect");
+    const rawFuncId = selectEl ? selectEl.value : "";
+
+    if (!rawFuncId) {
+      App.toast("Por favor, selecione um funcionário.", "danger");
+      return;
+    }
+
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
 
@@ -277,15 +289,14 @@ const NovaDeclaracaoPage = {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
-      const rawFuncId = document.getElementById("funcionarioId").value;
-      // Trata o ID mantendo o tipo exato (numérico ou string/UUID se não for convertível)
-      const funcId = !isNaN(rawFuncId) && rawFuncId !== "" ? Number(rawFuncId) : rawFuncId;
+      // Converte o ID se for estritamente numérico, ou mantém como string caso seja um UUID
+      const funcIdParsed = (!isNaN(rawFuncId) && rawFuncId.trim() !== "") ? Number(rawFuncId) : rawFuncId;
 
       const obs = document.getElementById("observacoes").value || "";
 
-      // Payload ajustado para a tabela declaracoes no Supabase
+      // Objeto formatado com os nomes exatos das colunas do Supabase
       const payload = {
-        funcionario_id: funcId,
+        funcionario_id: funcIdParsed,
         tipo: tipo,
         observacoes: obs,
         arquivo_base64: anexoData,
