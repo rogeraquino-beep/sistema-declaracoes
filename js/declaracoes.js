@@ -1,53 +1,59 @@
 const NovaDeclaracaoPage = {
   async init() {
-    const funcs = await App.getAll("funcionarios");
-    App.layout("Nova Declaração", "Lançamento e anexação do documento", `
-      <div class="card panel">
-        <form id="declForm" class="form">
-          <div class="grid-2">
-            <div class="field">
-              <label>Funcionário *</label>
-              <select id="funcionarioId" required>
-                <option value="">Selecione...</option>
-                ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
-              </select>
+    try {
+      const funcs = await App.getAll("funcionarios");
+      App.layout("Nova Declaração", "Lançamento e anexação do documento", `
+        <div class="card panel">
+          <form id="declForm" class="form">
+            <div class="grid-2">
+              <div class="field">
+                <label>Funcionário *</label>
+                <select id="funcionarioId" required>
+                  <option value="">Selecione...</option>
+                  ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)} — ${App.escapeHTML(f.matricula || "Sem mat.")}</option>`).join("")}
+                </select>
+              </div>
+              <div class="field">
+                <label>Tipo de declaração *</label>
+                <select id="tipo" required>
+                  <option value="horas">Declaração de Horas</option>
+                  <option value="dias">Declaração de Dias</option>
+                </select>
+              </div>
             </div>
+
+            <div id="camposDinamicos"></div>
+
             <div class="field">
-              <label>Tipo de declaração *</label>
-              <select id="tipo" required>
-                <option value="horas">Declaração de Horas</option>
-                <option value="dias">Declaração de Dias</option>
-              </select>
+              <label>Observações</label>
+              <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
             </div>
-          </div>
 
-          <div id="camposDinamicos"></div>
+            <div class="field">
+              <label>Anexar declaração</label>
+              <input type="file" id="arquivo" accept=".pdf,image/*">
+              <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
+            </div>
 
-          <div class="field">
-            <label>Observações</label>
-            <textarea id="observacoes" rows="3" placeholder="Informações adicionais..."></textarea>
-          </div>
+            <div class="form-actions">
+              <a href="declaracoes.html" class="btn btn-secondary">Cancelar</a>
+              <button type="submit" class="btn btn-primary">Salvar declaração</button>
+            </div>
+          </form>
+        </div>
+      `);
 
-          <div class="field">
-            <label>Anexar declaração</label>
-            <input type="file" id="arquivo" accept=".pdf,image/*">
-            <small class="help">Aceitos: PDF, JPG, JPEG e PNG.</small>
-          </div>
-
-          <div class="form-actions">
-            <a href="declaracoes.html" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary">Salvar declaração</button>
-          </div>
-        </form>
-      </div>
-    `);
-
-    this.bindEvents();
+      this.bindEvents();
+    } catch (err) {
+      console.error("Erro ao inicializar página:", err);
+      App.toast("Erro ao carregar lista de funcionários", "danger");
+    }
   },
 
   bindEvents() {
     const tipo = document.getElementById("tipo");
     const campos = document.getElementById("camposDinamicos");
+
     const renderCampos = () => {
       if (tipo.value === "horas") {
         campos.innerHTML = `
@@ -90,16 +96,15 @@ const NovaDeclaracaoPage = {
           </div>
         `;
       }
+
+      const inputData = document.getElementById("data") || document.getElementById("dataInicial");
+      if (inputData && !inputData.value) {
+        inputData.value = new Date().toISOString().slice(0, 10);
+      }
     };
 
     tipo.addEventListener("change", renderCampos);
     renderCampos();
-
-    // Preenche data de hoje como padrão
-    const inputData = document.getElementById("data") || document.getElementById("dataInicial");
-    if (inputData && !inputData.value) {
-      inputData.value = new Date().toISOString().slice(0, 10);
-    }
 
     document.getElementById("declForm").addEventListener("submit", e => this.save(e));
   },
@@ -116,7 +121,7 @@ const NovaDeclaracaoPage = {
 
       if (fileInput.files && fileInput.files[0]) {
         const file = fileInput.files[0];
-        fileData = await new Promise((resolve) => {
+        fileData = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve({
             arquivo: reader.result,
@@ -124,6 +129,7 @@ const NovaDeclaracaoPage = {
             tipoArquivo: file.type,
             tamanhoArquivo: file.size
           });
+          reader.onerror = reject;
           reader.readAsDataURL(file);
         });
       }
@@ -148,11 +154,11 @@ const NovaDeclaracaoPage = {
       }
 
       await App.add("declaracoes", payload);
-      App.toast("Declaração gravada com sucesso!");
+      App.toast("Declaração salva com sucesso!");
       setTimeout(() => window.location.href = "declaracoes.html", 1000);
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao salvar declaração: " + err.message, "danger");
+      App.toast("Erro ao salvar declaração: " + (err.message || err), "danger");
       btn.disabled = false;
     }
   }
