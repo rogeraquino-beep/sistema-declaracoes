@@ -102,32 +102,32 @@ const FuncionarioPage = {
           <form id="funcEditForm" class="form">
             <div class="grid-2">
               <div class="field">
-                <label>Nome Completo *</label>
+                <label for="nome">Nome Completo *</label>
                 <input type="text" id="nome" class="input" value="${App.escapeHTML(funcionario.nome || "")}" required>
               </div>
               <div class="field">
-                <label>Matrícula</label>
+                <label for="matricula">Matrícula</label>
                 <input type="text" id="matricula" class="input" value="${App.escapeHTML(funcionario.matricula || "")}">
               </div>
             </div>
 
             <div class="grid-3">
               <div class="field">
-                <label>Cargo / Função</label>
+                <label for="cargo">Cargo / Função</label>
                 <input type="text" id="cargo" class="input" value="${App.escapeHTML(funcionario.cargo || "")}">
               </div>
               <div class="field">
-                <label>Setor</label>
+                <label for="setor">Setor</label>
                 <input type="text" id="setor" class="input" value="${App.escapeHTML(funcionario.setor || "")}">
               </div>
               <div class="field">
-                <label>Vínculo</label>
+                <label for="vinculo">Vínculo</label>
                 <input type="text" id="vinculo" class="input" value="${App.escapeHTML(funcionario.vinculo || "")}">
               </div>
             </div>
 
             <div class="field">
-              <label>Observações</label>
+              <label for="observacoes">Observações</label>
               <textarea id="observacoes" class="input" rows="3">${App.escapeHTML(funcionario.observacoes || "")}</textarea>
             </div>
 
@@ -180,32 +180,32 @@ const NovoFuncionarioPage = {
         <form id="novoFuncForm" class="form">
           <div class="grid-2">
             <div class="field">
-              <label>Nome Completo *</label>
+              <label for="nome">Nome Completo *</label>
               <input type="text" id="nome" class="input" required placeholder="Digite o nome completo">
             </div>
             <div class="field">
-              <label>Matrícula</label>
+              <label for="matricula">Matrícula</label>
               <input type="text" id="matricula" class="input" placeholder="Ex: 0000">
             </div>
           </div>
 
           <div class="grid-3">
             <div class="field">
-              <label>Cargo / Função</label>
+              <label for="cargo">Cargo / Função</label>
               <input type="text" id="cargo" class="input" placeholder="Ex: Professor">
             </div>
             <div class="field">
-              <label>Setor</label>
+              <label for="setor">Setor</label>
               <input type="text" id="setor" class="input" placeholder="Ex: Secretaria">
             </div>
             <div class="field">
-              <label>Vínculo</label>
+              <label for="vinculo">Vínculo</label>
               <input type="text" id="vinculo" class="input" placeholder="Ex: Efetivo">
             </div>
           </div>
 
           <div class="field">
-            <label>Observações</label>
+            <label for="observacoes">Observações</label>
             <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais..."></textarea>
           </div>
 
