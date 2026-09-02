@@ -25,7 +25,7 @@ const RelatoriosPage = {
       </div>
 
       <div class="card panel no-print mb-4">
-        <div class="grid-3">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
           <div class="form-group">
             <label class="form-label">Funcionário</label>
             <select class="form-control" id="filtroFuncionario">
@@ -41,15 +41,13 @@ const RelatoriosPage = {
               <option value="dias">Dias</option>
             </select>
           </div>
-          <div class="form-group grid-2" style="gap:8px">
-            <div>
-              <label class="form-label">Data inicial</label>
-              <input type="date" class="form-control" id="filtroInicio">
-            </div>
-            <div>
-              <label class="form-label">Data final</label>
-              <input type="date" class="form-control" id="filtroFim">
-            </div>
+          <div class="form-group">
+            <label class="form-label">Data inicial</label>
+            <input type="date" class="form-control" id="filtroInicio">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data final</label>
+            <input type="date" class="form-control" id="filtroFim">
           </div>
         </div>
       </div>
