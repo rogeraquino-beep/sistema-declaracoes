@@ -11,18 +11,12 @@ function fileToBase64(file) {
   });
 }
 
-// Extrai um ID válido do objeto funcionário
 function extrairIdFuncionario(f) {
   if (!f || typeof f !== 'object') return "";
   const possiveisChaves = ['id', 'funcionario_id', 'id_funcionario', 'codigo', 'cpf', 'matricula'];
   for (const key of possiveisChaves) {
     if (f[key] !== undefined && f[key] !== null && String(f[key]).trim() !== "") {
-      return f[key];
-    }
-  }
-  for (const [key, value] of Object.entries(f)) {
-    if (key !== 'nome' && key !== 'nome_funcionario' && value !== null && value !== undefined && String(value).trim() !== "") {
-      return value;
+      return String(f[key]);
     }
   }
   return "";
@@ -74,7 +68,7 @@ const DeclaracoesPage = {
       return `<div class="empty"><strong>Nenhuma declaração encontrada</strong><p>Clique em "+ Nova Declaração" para cadastrar.</p></div>`;
     }
 
-    const rows = [...list].sort((a, b) => Number(b.id) - Number(a.id));
+    const rows = [...list].sort((a, b) => String(b.id).localeCompare(String(a.id)));
 
     return `
       <div class="table-wrap">
@@ -93,26 +87,26 @@ const DeclaracoesPage = {
           </thead>
           <tbody>
             ${rows.map(d => {
-              const fKey = d.funcionario_id || d.id_funcionario || d.funcionarioId || d.funcionario;
+              const fKey = String(d.funcionario_id || "");
               const f = funcMap[fKey];
               const isHoras = d.tipo === "horas";
-              const dataInicial = d.data_inicial || d.dataInicial || d.data;
-              const dataFinal = d.data_final || d.dataFinal || dataInicial;
+              const dataInicial = d.data_inicial || d.data_inicio || d.data;
+              const dataFinal = d.data_final || d.data_fim || dataInicial;
               
               const periodo = isHoras 
                 ? App.formatDate(d.data) 
                 : `${App.formatDate(dataInicial)} até ${App.formatDate(dataFinal)}`;
               
               const qtd = isHoras 
-                ? `${d.quantidade_horas ?? d.quantidadeHoras ?? 0}h` 
-                : `${d.quantidade_dias ?? d.quantidadeDias ?? 0} dia(s)`;
+                ? `${d.quantidade_horas ?? 0}h` 
+                : `${d.quantidade_dias ?? 0} dia(s)`;
                 
-              const anexo = d.arquivo_url || d.arquivoUrl || d.arquivo_base64 || d.arquivoBase64;
+              const anexo = d.arquivo_url || d.arquivo_base64;
 
               return `
                 <tr>
                   <td><code>#${d.id}</code></td>
-                  <td><strong>${App.escapeHTML(f?.nome || f?.nome_funcionario || "Funcionário não encontrado")}</strong></td>
+                  <td><strong>${App.escapeHTML(f?.nome_completo || f?.nome || "Funcionário não encontrado")}</strong></td>
                   <td><span class="badge ${isHoras ? "badge-hours" : "badge-days"}">${isHoras ? "Horas" : "Dias"}</span></td>
                   <td>${periodo}</td>
                   <td>${qtd}</td>
@@ -121,7 +115,7 @@ const DeclaracoesPage = {
                       ? `<a href="${anexo}" target="_blank" class="badge badge-hours" style="text-decoration:none;">📎 Ver Anexo</a>` 
                       : `<span style="color:#888;">Sem anexo</span>`}
                   </td>
-                  <td>${App.escapeHTML(d.observacoes || "—")}</td>
+                  <td>${App.escapeHTML(d.observacoes || d.descricao || "—")}</td>
                   <td class="no-print">
                     <a href="nova-declaracao.html?id=${d.id}" class="btn btn-secondary btn-sm">Editar</a>
                     <button class="btn btn-danger btn-sm" onclick="DeclaracoesPage.deleteItem('${d.id}')">Excluir</button>
@@ -164,8 +158,8 @@ const NovaDeclaracaoPage = {
       }
 
       const isEdit = !!decl;
-      const funcIdAtual = decl?.funcionario_id || decl?.id_funcionario || decl?.funcionarioId || decl?.funcionario;
-      const anexoAtual = decl?.arquivo_url || decl?.arquivoUrl || decl?.arquivo_base64 || decl?.arquivoBase64;
+      const funcIdAtual = String(decl?.funcionario_id || "");
+      const anexoAtual = decl?.arquivo_url || decl?.arquivo_base64;
 
       App.layout(
         isEdit ? "Editar Declaração" : "Nova Declaração", 
@@ -180,8 +174,8 @@ const NovaDeclaracaoPage = {
                   <option value="">Selecione um funcionário...</option>
                   ${this.funcionariosLista.map((f, idx) => {
                     const realId = extrairIdFuncionario(f);
-                    const selected = decl && (funcIdAtual == realId || String(funcIdAtual) === String(realId)) ? "selected" : "";
-                    const nomeStr = f.nome || f.nome_funcionario || "Funcionário";
+                    const selected = decl && funcIdAtual === realId ? "selected" : "";
+                    const nomeStr = f.nome_completo || f.nome || "Funcionário";
                     const matStr = f.matricula || f.cpf || "000";
                     return `<option value="${realId}" data-index="${idx}" ${selected}>${App.escapeHTML(nomeStr)} — ${App.escapeHTML(matStr)}</option>`;
                   }).join("")}
@@ -200,7 +194,7 @@ const NovaDeclaracaoPage = {
 
             <div class="field">
               <label for="observacoes">Observações</label>
-              <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais...">${App.escapeHTML(decl?.observacoes || "")}</textarea>
+              <textarea id="observacoes" class="input" rows="3" placeholder="Informações adicionais...">${App.escapeHTML(decl?.observacoes || decl?.descricao || "")}</textarea>
             </div>
 
             <div class="field">
@@ -230,9 +224,9 @@ const NovaDeclaracaoPage = {
 
     const renderCampos = () => {
       if (tipo.value === "horas") {
-        const hInicial = decl?.hora_inicial || decl?.horaInicial || '';
-        const hFinal = decl?.hora_final || decl?.horaFinal || '';
-        const qHoras = decl?.quantidade_horas ?? decl?.quantidadeHoras ?? '';
+        const hInicial = decl?.hora_inicial || '';
+        const hFinal = decl?.hora_final || '';
+        const qHoras = decl?.quantidade_horas ?? '';
 
         campos.innerHTML = `
           <div class="grid-3">
@@ -257,9 +251,9 @@ const NovaDeclaracaoPage = {
           </div>
         `;
       } else {
-        const dInicial = decl?.data_inicial || decl?.dataInicial || decl?.data || '';
-        const dFinal = decl?.data_final || decl?.dataFinal || '';
-        const qDias = decl?.quantidade_dias ?? decl?.quantidadeDias ?? '';
+        const dInicial = decl?.data_inicial || decl?.data_inicio || decl?.data || '';
+        const dFinal = decl?.data_final || decl?.data_fim || '';
+        const qDias = decl?.quantidade_dias ?? '';
 
         campos.innerHTML = `
           <div class="grid-3">
@@ -297,7 +291,7 @@ const NovaDeclaracaoPage = {
     const selectEl = document.getElementById("funcionarioSelect");
     let rawFuncId = selectEl ? selectEl.value : "";
 
-    if ((!rawFuncId || rawFuncId === "" || rawFuncId === "null" || rawFuncId === "undefined") && selectEl.selectedIndex >= 0) {
+    if (!rawFuncId && selectEl.selectedIndex >= 0) {
       const selectedOption = selectEl.options[selectEl.selectedIndex];
       const idx = selectedOption.getAttribute("data-index");
       if (idx !== null && this.funcionariosLista[idx]) {
@@ -305,7 +299,7 @@ const NovaDeclaracaoPage = {
       }
     }
 
-    if (!rawFuncId || String(rawFuncId).trim() === "" || rawFuncId === "null" || rawFuncId === "undefined") {
+    if (!rawFuncId || String(rawFuncId).trim() === "") {
       App.toast("Selecione um funcionário válido.", "danger");
       return;
     }
@@ -317,20 +311,17 @@ const NovaDeclaracaoPage = {
       const tipo = document.getElementById("tipo").value;
       const fileInput = document.getElementById("arquivo");
 
-      let anexoData = declAntiga?.arquivo_url || declAntiga?.arquivoUrl || declAntiga?.arquivo_base64 || declAntiga?.arquivoBase64 || null;
+      let anexoData = declAntiga?.arquivo_url || declAntiga?.arquivo_base64 || null;
 
       if (fileInput.files.length > 0) {
         anexoData = await fileToBase64(fileInput.files[0]);
       }
 
-      const funcIdParsed = (!isNaN(rawFuncId) && String(rawFuncId).trim() !== "") ? Number(rawFuncId) : rawFuncId;
       const obs = document.getElementById("observacoes").value || "";
 
-      // Envia os campos em todas as nomenclaturas comuns para garantir compatibilidade total com o Supabase
+      // Objeto exato com o tipo String para funcionario_id e colunas corretas do Supabase
       const payload = {
-        funcionario_id: funcIdParsed,
-        id_funcionario: funcIdParsed,
-        funcionario: funcIdParsed,
+        funcionario_id: String(rawFuncId),
         tipo: tipo,
         observacoes: obs,
         arquivo_base64: anexoData,
@@ -351,6 +342,8 @@ const NovaDeclaracaoPage = {
         const dFim = document.getElementById("dataFinal").value || dIni;
         payload.data_inicial = dIni;
         payload.data_final = dFim;
+        payload.data_inicio = dIni;
+        payload.data_fim = dFim;
         payload.data = dIni;
         payload.quantidade_dias = parseInt(document.getElementById("quantidadeDias").value, 10) || 1;
       }
