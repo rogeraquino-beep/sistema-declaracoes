@@ -1,102 +1,169 @@
 /* =====================================================
-   CONFIGURAÇÃO DO SUPABASE STORAGE
+   CONFIGURAÇÃO
 ===================================================== */
 
-const STORAGE_SUPABASE_URL =
+const SUPABASE_URL =
   "https://cujlebxqqposqomtfvdk.supabase.co";
 
-const STORAGE_SUPABASE_KEY =
+const SUPABASE_KEY =
   "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
 
-const STORAGE_BUCKET = "declaracoes";
+const BUCKET =
+  "declaracoes";
+
+const REST_URL =
+  `${SUPABASE_URL}/rest/v1`;
+
+const STORAGE_URL =
+  `${SUPABASE_URL}/storage/v1`;
 
 
 /* =====================================================
-   UPLOAD DE ARQUIVO PARA O SUPABASE STORAGE
+   CABEÇALHOS
 ===================================================== */
 
-async function uploadArquivoSupabase(file) {
+function supabaseHeaders(extra = {}) {
 
-  if (!file) return null;
+  return {
 
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error(
-      "O arquivo é muito grande. Escolha um arquivo de até 10MB."
-    );
+    apikey:
+      SUPABASE_KEY,
+
+    Authorization:
+      `Bearer ${SUPABASE_KEY}`,
+
+    "Content-Type":
+      "application/json",
+
+    ...extra
+
+  };
+
+}
+
+
+/* =====================================================
+   UPLOAD DO ARQUIVO
+===================================================== */
+
+async function uploadArquivo(file) {
+
+  if (!file) {
+
+    return null;
+
   }
 
-  const tiposPermitidos = [
-    "application/pdf",
-    "image/jpeg",
-    "image/png"
-  ];
 
   if (
-    file.type &&
-    !tiposPermitidos.includes(file.type)
+    file.size >
+    10 * 1024 * 1024
   ) {
+
     throw new Error(
-      "Formato não permitido. Envie PDF, JPG, JPEG ou PNG."
+      "O arquivo deve ter no máximo 10MB."
     );
+
   }
 
-  const nomeSeguro = file.name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "_");
 
-  /*
-    IMPORTANTE:
-    Como o bucket já se chama "declaracoes",
-    o arquivo será salvo dentro dele.
-  */
-  const caminhoArquivo =
+  const tiposPermitidos = [
+
+    "application/pdf",
+
+    "image/jpeg",
+
+    "image/png"
+
+  ];
+
+
+  if (
+    !tiposPermitidos.includes(
+      file.type
+    )
+  ) {
+
+    throw new Error(
+      "Envie somente PDF, JPG, JPEG ou PNG."
+    );
+
+  }
+
+
+  const nomeSeguro =
+    file.name
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      )
+      .replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      );
+
+
+  const caminho =
     `${Date.now()}_${Math.random()
       .toString(36)
-      .slice(2, 8)}_${nomeSeguro}`;
+      .substring(2, 8)}_${nomeSeguro}`;
 
-  const urlUpload =
-    `${STORAGE_SUPABASE_URL}/storage/v1/object/` +
-    `${STORAGE_BUCKET}/${caminhoArquivo}`;
 
-  const resposta = await fetch(urlUpload, {
-    method: "POST",
+  const resposta =
+    await fetch(
 
-    headers: {
-      "apikey": STORAGE_SUPABASE_KEY,
+      `${STORAGE_URL}/object/${BUCKET}/${caminho}`,
 
-      "Authorization":
-        `Bearer ${STORAGE_SUPABASE_KEY}`,
+      {
 
-      "Content-Type":
-        file.type ||
-        "application/octet-stream",
+        method:
+          "POST",
 
-      "x-upsert": "false"
-    },
+        headers: {
 
-    body: file
-  });
+          ...supabaseHeaders(),
 
-  if (!resposta.ok) {
+          "Content-Type":
+            file.type,
+
+          "x-upsert":
+            "false"
+
+        },
+
+        body:
+          file
+
+      }
+
+    );
+
+
+  if (
+    !resposta.ok
+  ) {
 
     const erro =
       await resposta.text();
 
     console.error(
-      "Erro ao enviar arquivo:",
+      "Erro no Storage:",
       erro
     );
 
     throw new Error(
-      "Erro ao enviar o arquivo para o Supabase: " +
-      erro
+      "Não foi possível enviar o arquivo."
     );
+
   }
 
+
   const urlPublica =
-    `${STORAGE_SUPABASE_URL}/storage/v1/object/public/` +
-    `${STORAGE_BUCKET}/${caminhoArquivo}`;
+
+    `${STORAGE_URL}/object/public/` +
+    `${BUCKET}/${caminho}`;
+
 
   return {
 
@@ -113,128 +180,263 @@ async function uploadArquivoSupabase(file) {
       file.size,
 
     caminho:
-      caminhoArquivo
+      caminho
+
   };
+
 }
 
 
 /* =====================================================
-   EXCLUIR ARQUIVO DO SUPABASE STORAGE
+   EXCLUIR ARQUIVO
 ===================================================== */
 
-async function excluirArquivoSupabase(urlArquivo) {
+async function excluirArquivo(url) {
 
-  if (!urlArquivo) return;
+  if (!url) {
+
+    return;
+
+  }
+
 
   try {
 
-    const parte =
-      `/object/public/${STORAGE_BUCKET}/`;
+    const marcador =
+      `/object/public/${BUCKET}/`;
 
-    const indice =
-      urlArquivo.indexOf(parte);
 
-    if (indice === -1) {
-      console.warn(
-        "Não foi possível identificar o caminho do arquivo."
-      );
+    const posicao =
+      url.indexOf(marcador);
+
+
+    if (
+      posicao === -1
+    ) {
 
       return;
+
     }
 
+
     const caminho =
-      urlArquivo.substring(
-        indice + parte.length
+      url.substring(
+        posicao +
+        marcador.length
       );
 
-    const urlDelete =
-      `${STORAGE_SUPABASE_URL}/storage/v1/object/` +
-      `${STORAGE_BUCKET}/${caminho}`;
 
-    const resposta =
-      await fetch(urlDelete, {
+    await fetch(
+
+      `${STORAGE_URL}/object/${BUCKET}/${caminho}`,
+
+      {
 
         method:
           "DELETE",
 
-        headers: {
+        headers:
+          supabaseHeaders()
 
-          "apikey":
-            STORAGE_SUPABASE_KEY,
+      }
 
-          "Authorization":
-            `Bearer ${STORAGE_SUPABASE_KEY}`
-        }
-      });
+    );
 
-    if (!resposta.ok) {
-
-      const erro =
-        await resposta.text();
-
-      console.warn(
-        "Não foi possível excluir o arquivo:",
-        erro
-      );
-    }
-
-  } catch (erro) {
+  } catch (
+    erro
+  ) {
 
     console.warn(
       "Erro ao excluir arquivo:",
       erro
     );
+
   }
+
 }
 
 
 /* =====================================================
-   PEGAR ID DO FUNCIONÁRIO
+   FORMATAR DATA
 ===================================================== */
 
-function extrairIdFuncionario(f) {
+function formatarData(data) {
 
-  if (!f || typeof f !== "object") {
-    return "";
+  if (!data) {
+
+    return "—";
+
   }
 
-  const possiveisChaves = [
 
-    "id",
+  const partes =
+    String(data)
+      .slice(0, 10)
+      .split("-");
 
-    "funcionarioId",
 
-    "funcionario_id",
-
-    "id_funcionario",
-
-    "codigo",
-
-    "cpf",
-
-    "matricula"
-  ];
-
-  for (
-    const key of possiveisChaves
+  if (
+    partes.length !== 3
   ) {
 
-    if (
+    return data;
 
-      f[key] !== undefined &&
-
-      f[key] !== null &&
-
-      String(f[key]).trim() !== ""
-    ) {
-
-      return String(
-        f[key]
-      );
-    }
   }
 
-  return "";
+
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+
+}
+
+
+/* =====================================================
+   ESCAPAR HTML
+===================================================== */
+
+function esc(value = "") {
+
+  return String(value)
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+
+
+/* =====================================================
+   CARREGAR FUNCIONÁRIOS
+===================================================== */
+
+async function carregarFuncionarios() {
+
+  const resposta =
+    await fetch(
+
+      `${REST_URL}/funcionarios?select=id,nome_completo,matricula&order=nome_completo.asc`,
+
+      {
+
+        headers:
+          supabaseHeaders()
+
+      }
+
+    );
+
+
+  if (
+    !resposta.ok
+  ) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  return await resposta.json();
+
+}
+
+
+/* =====================================================
+   CARREGAR DECLARAÇÕES
+===================================================== */
+
+async function carregarDeclaracoes() {
+
+  const resposta =
+    await fetch(
+
+      `${REST_URL}/declaracoes?select=*&order=id.desc`,
+
+      {
+
+        headers:
+          supabaseHeaders()
+
+      }
+
+    );
+
+
+  if (
+    !resposta.ok
+  ) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  return await resposta.json();
+
+}
+
+
+/* =====================================================
+   CARREGAR UMA DECLARAÇÃO
+===================================================== */
+
+async function carregarDeclaracao(id) {
+
+  const resposta =
+    await fetch(
+
+      `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}&select=*`,
+
+      {
+
+        headers:
+          supabaseHeaders()
+
+      }
+
+    );
+
+
+  if (
+    !resposta.ok
+  ) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  const dados =
+    await resposta.json();
+
+
+  return dados[0] || null;
+
 }
 
 
@@ -249,41 +451,28 @@ const DeclaracoesPage = {
     try {
 
       const [
-
         declaracoes,
-
         funcionarios
-
       ] = await Promise.all([
 
-        App.getAll("declaracoes")
-          .catch(() => []),
+        carregarDeclaracoes(),
 
-        App.getAll("funcionarios")
-          .catch(() => [])
+        carregarFuncionarios()
 
       ]);
 
 
-      const funcMap = {};
+      const funcionariosMap =
+        Object.fromEntries(
 
+          funcionarios.map(
+            f => [
+              String(f.id),
+              f
+            ]
+          )
 
-      if (
-        Array.isArray(funcionarios)
-      ) {
-
-        funcionarios.forEach(f => {
-
-          const fid =
-            extrairIdFuncionario(f);
-
-          if (fid) {
-
-            funcMap[fid] =
-              f;
-          }
-        });
-      }
+        );
 
 
       App.layout(
@@ -333,7 +522,7 @@ const DeclaracoesPage = {
 
             <span class="badge badge-hours">
 
-              ${(declaracoes || []).length}
+              ${declaracoes.length}
 
               no total
 
@@ -342,381 +531,364 @@ const DeclaracoesPage = {
           </div>
 
 
-          ${this.renderTable(
-            declaracoes || [],
-            funcMap
-          )}
+          ${
+            declaracoes.length === 0
+
+              ?
+
+              `
+
+              <div class="empty">
+
+                <strong>
+                  Nenhuma declaração encontrada
+                </strong>
+
+              </div>
+
+              `
+
+              :
+
+              `
+
+              <div class="table-wrap">
+
+                <table>
+
+                  <thead>
+
+                    <tr>
+
+                      <th>
+                        ID
+                      </th>
+
+                      <th>
+                        Funcionário
+                      </th>
+
+                      <th>
+                        Tipo
+                      </th>
+
+                      <th>
+                        Data / Período
+                      </th>
+
+                      <th>
+                        Qtd.
+                      </th>
+
+                      <th>
+                        Anexo
+                      </th>
+
+                      <th>
+                        Observações
+                      </th>
+
+                      <th>
+                        Ações
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    ${
+
+                      declaracoes.map(
+
+                        d => {
+
+                          const funcionario =
+
+                            funcionariosMap[
+                              String(
+                                d.funcionario_id
+                              )
+                            ];
+
+
+                          const horas =
+                            d.tipo === "horas";
+
+
+                          const dataInicial =
+                            d.data_inicio ||
+                            d.data_inicial ||
+                            d.data;
+
+
+                          const dataFinal =
+                            d.data_fim ||
+                            d.data_final ||
+                            d.data;
+
+
+                          const periodo =
+
+                            horas
+
+                              ?
+
+                              formatarData(
+                                d.data
+                              )
+
+                              :
+
+                              `${formatarData(
+                                dataInicial
+                              )} até ${formatarData(
+                                dataFinal
+                              )}`;
+
+
+                          const quantidade =
+
+                            horas
+
+                              ?
+
+                              `${Number(
+                                d.quantidade_horas || 0
+                              )}h`
+
+                              :
+
+                              `${Number(
+                                d.quantidade_dias || 0
+                              )} dia(s)`;
+
+
+                          return `
+
+                            <tr>
+
+                              <td>
+                                #${d.id}
+                              </td>
+
+
+                              <td>
+
+                                <strong>
+
+                                  ${esc(
+                                    funcionario?.nome_completo ||
+                                    "Funcionário não encontrado"
+                                  )}
+
+                                </strong>
+
+                              </td>
+
+
+                              <td>
+
+                                <span
+                                  class="badge ${
+                                    horas
+                                      ? "badge-hours"
+                                      : "badge-days"
+                                  }"
+                                >
+
+                                  ${
+                                    horas
+                                      ? "Horas"
+                                      : "Dias"
+                                  }
+
+                                </span>
+
+                              </td>
+
+
+                              <td>
+                                ${periodo}
+                              </td>
+
+
+                              <td>
+                                ${quantidade}
+                              </td>
+
+
+                              <td>
+
+                                ${
+                                  d.arquivo_url
+
+                                    ?
+
+                                    `
+
+                                    <a
+                                      href="${d.arquivo_url}"
+                                      target="_blank"
+                                      class="badge badge-hours"
+                                      style="text-decoration:none;"
+                                    >
+
+                                      📎 Ver Anexo
+
+                                    </a>
+
+                                    `
+
+                                    :
+
+                                    `<span style="color:#888;">
+                                      Sem anexo
+                                    </span>`
+
+                                }
+
+                              </td>
+
+
+                              <td>
+
+                                ${esc(
+                                  d.observacoes ||
+                                  d.descricao ||
+                                  "—"
+                                )}
+
+                              </td>
+
+
+                              <td>
+
+                                <a
+                                  href="nova-declaracao.html?id=${d.id}"
+                                  class="btn btn-secondary btn-sm"
+                                >
+                                  Editar
+                                </a>
+
+
+                                <button
+                                  class="btn btn-danger btn-sm"
+                                  onclick="
+                                    DeclaracoesPage.excluir(
+                                      '${d.id}'
+                                    )
+                                  "
+                                >
+                                  Excluir
+                                </button>
+
+                              </td>
+
+                            </tr>
+
+                          `;
+
+                        }
+
+                      ).join("")
+
+                    }
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+              `
+
+          }
 
         </div>
 
         `
+
       );
 
-    } catch (err) {
+    } catch (
+      erro
+    ) {
 
       console.error(
-        "Erro ao carregar declarações:",
-        err
+        erro
       );
 
       App.toast(
-
-        "Erro ao carregar dados: " +
-        (err.message || err),
-
+        "Erro ao carregar declarações.",
         "danger"
       );
+
     }
+
   },
 
 
-  renderTable(
-    list,
-    funcMap
-  ) {
+  async excluir(id) {
 
     if (
-      !list ||
-      !list.length
-    ) {
-
-      return `
-
-        <div class="empty">
-
-          <strong>
-            Nenhuma declaração encontrada
-          </strong>
-
-          <p>
-            Clique em "+ Nova Declaração"
-            para cadastrar.
-          </p>
-
-        </div>
-
-      `;
-    }
-
-
-    const rows =
-      [...list].sort(
-        (a, b) =>
-          String(b.id)
-            .localeCompare(
-              String(a.id)
-            )
-      );
-
-
-    return `
-
-      <div class="table-wrap">
-
-        <table>
-
-          <thead>
-
-            <tr>
-
-              <th>ID</th>
-
-              <th>
-                Funcionário
-              </th>
-
-              <th>
-                Tipo
-              </th>
-
-              <th>
-                Data / Período
-              </th>
-
-              <th>
-                Qtd.
-              </th>
-
-              <th>
-                Anexo
-              </th>
-
-              <th>
-                Observações
-              </th>
-
-              <th class="no-print">
-                Ações
-              </th>
-
-            </tr>
-
-          </thead>
-
-
-          <tbody>
-
-            ${rows.map(d => {
-
-              const fKey =
-                String(
-                  d.funcionarioId || ""
-                );
-
-              const f =
-                funcMap[fKey];
-
-              const isHoras =
-                d.tipo === "horas";
-
-              const dataInicial =
-                d.dataInicial ||
-                d.data;
-
-              const dataFinal =
-                d.dataFinal ||
-                dataInicial;
-
-              const periodo =
-                isHoras
-
-                  ? App.formatDate(
-                      d.data
-                    )
-
-                  : `${App.formatDate(
-                      dataInicial
-                    )} até ${App.formatDate(
-                      dataFinal
-                    )}`;
-
-              const qtd =
-                isHoras
-
-                  ? `${d.quantidadeHoras ?? 0}h`
-
-                  : `${d.quantidadeDias ?? 0} dia(s)`;
-
-              const anexo =
-                d.arquivo;
-
-
-              return `
-
-                <tr>
-
-                  <td>
-
-                    <code>
-                      #${d.id}
-                    </code>
-
-                  </td>
-
-
-                  <td>
-
-                    <strong>
-
-                      ${App.escapeHTML(
-
-                        f?.nome ||
-
-                        "Funcionário não encontrado"
-
-                      )}
-
-                    </strong>
-
-                  </td>
-
-
-                  <td>
-
-                    <span class="badge ${
-                      isHoras
-                        ? "badge-hours"
-                        : "badge-days"
-                    }">
-
-                      ${
-                        isHoras
-                          ? "Horas"
-                          : "Dias"
-                      }
-
-                    </span>
-
-                  </td>
-
-
-                  <td>
-
-                    ${periodo}
-
-                  </td>
-
-
-                  <td>
-
-                    ${qtd}
-
-                  </td>
-
-
-                  <td>
-
-                    ${
-                      anexo
-
-                        ? `
-
-                          <a
-
-                            href="${anexo}"
-
-                            target="_blank"
-
-                            class="badge badge-hours"
-
-                            style="
-                              text-decoration:none;
-                            "
-
-                          >
-
-                            📎 Ver Anexo
-
-                          </a>
-
-                        `
-
-                        : `
-
-                          <span
-                            style="
-                              color:#888;
-                            "
-                          >
-
-                            Sem anexo
-
-                          </span>
-
-                        `
-                    }
-
-                  </td>
-
-
-                  <td>
-
-                    ${App.escapeHTML(
-
-                      d.observacoes || "—"
-
-                    )}
-
-                  </td>
-
-
-                  <td class="no-print">
-
-
-                    <a
-
-                      href="nova-declaracao.html?id=${d.id}"
-
-                      class="
-                        btn
-                        btn-secondary
-                        btn-sm
-                      "
-
-                    >
-
-                      Editar
-
-                    </a>
-
-
-                    <button
-
-                      class="
-                        btn
-                        btn-danger
-                        btn-sm
-                      "
-
-                      onclick="
-                        DeclaracoesPage.deleteItem(
-                          '${d.id}'
-                        )
-                      "
-
-                    >
-
-                      Excluir
-
-                    </button>
-
-
-                  </td>
-
-                </tr>
-
-              `;
-
-            }).join("")}
-
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    `;
-  },
-
-
-  async deleteItem(id) {
-
-    if (
-
       !confirm(
-        "Tem certeza que deseja excluir esta declaração?"
+        "Deseja excluir esta declaração?"
       )
-
     ) {
 
       return;
+
     }
 
 
     try {
 
       const declaracao =
-        await App.get(
-          "declaracoes",
+        await carregarDeclaracao(
           id
         );
 
 
       if (
-        declaracao?.arquivo
+        declaracao?.arquivo_url
       ) {
 
-        await excluirArquivoSupabase(
-          declaracao.arquivo
+        await excluirArquivo(
+          declaracao.arquivo_url
         );
+
       }
 
 
-      await App.remove(
-        "declaracoes",
-        id
-      );
+      const resposta =
+        await fetch(
+
+          `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}`,
+
+          {
+
+            method:
+              "DELETE",
+
+            headers:
+              supabaseHeaders()
+
+          }
+
+        );
+
+
+      if (
+        !resposta.ok
+      ) {
+
+        throw new Error(
+          await resposta.text()
+        );
+
+      }
 
 
       App.toast(
@@ -724,92 +896,80 @@ const DeclaracoesPage = {
       );
 
 
-      this.init();
+      await this.init();
 
-    } catch (err) {
+    } catch (
+      erro
+    ) {
 
-      console.error(err);
+      console.error(
+        erro
+      );
 
       App.toast(
-
-        "Erro ao excluir: " +
-        (err.message || err),
-
+        "Erro ao excluir declaração.",
         "danger"
       );
+
     }
+
   }
 
 };
 
 
 /* =====================================================
-   NOVA DECLARAÇÃO
+   NOVA / EDITAR DECLARAÇÃO
 ===================================================== */
 
 const NovaDeclaracaoPage = {
 
-  funcionariosLista: [],
+  funcionarios: [],
 
 
   async init() {
 
-    const params =
+    const parametros =
       new URLSearchParams(
         window.location.search
       );
 
+
     const id =
-      params.get("id");
+      parametros.get("id");
 
 
     try {
 
-      this.funcionariosLista =
-
-        await App
-          .getAll("funcionarios")
-          .catch(() => []);
+      this.funcionarios =
+        await carregarFuncionarios();
 
 
-      let decl =
+      let declaracao =
         null;
 
 
       if (id) {
 
-        decl =
+        declaracao =
+          await carregarDeclaracao(
+            id
+          );
 
-          await App
-            .get(
-              "declaracoes",
-              id
-            )
-            .catch(() => null);
       }
 
 
-      const isEdit =
-        !!decl;
-
-
-      const funcIdAtual =
-        String(
-          decl?.funcionarioId || ""
-        );
-
-
-      const anexoAtual =
-        decl?.arquivo || null;
+      const editando =
+        !!declaracao;
 
 
       App.layout(
 
-        isEdit
+        editando
           ? "Editar Declaração"
           : "Nova Declaração",
 
-        isEdit
+        editando
           ? "Atualização dos dados da declaração"
           : "Lançamento e anexação do documento",
 
@@ -818,94 +978,97 @@ const NovaDeclaracaoPage = {
         <div class="card panel">
 
           <form
-            id="declForm"
+            id="formDeclaracao"
             class="form"
           >
 
-
             <div class="grid-2">
-
 
               <div class="field">
 
-                <label for="funcionarioSelect">
-
+                <label
+                  for="funcionario"
+                >
                   Funcionário *
-
                 </label>
 
 
                 <select
-
-                  id="funcionarioSelect"
-
+                  id="funcionario"
                   class="input"
-
                   required
-
                 >
 
-
                   <option value="">
-
                     Selecione um funcionário...
-
                   </option>
 
 
-                  ${this.funcionariosLista.map(
-                    (f, idx) => {
+                  ${
 
-                      const realId =
-                        extrairIdFuncionario(f);
+                    this.funcionarios
 
-                      const selected =
+                      .map(
 
-                        decl &&
+                        funcionario => {
 
-                        funcIdAtual === realId
-
-                          ? "selected"
-
-                          : "";
-
-                      const nomeStr =
-                        f.nome ||
-                        "Funcionário";
-
-                      const matStr =
-                        f.matricula ||
-                        "000";
+                          const idFuncionario =
+                            Number(
+                              funcionario.id
+                            );
 
 
-                      return `
+                          if (
+                            !Number.isInteger(
+                              idFuncionario
+                            )
+                          ) {
 
-                        <option
+                            return "";
 
-                          value="${realId}"
+                          }
 
-                          data-index="${idx}"
 
-                          ${selected}
+                          const selecionado =
 
-                        >
+                            editando &&
 
-                          ${App.escapeHTML(
-                            nomeStr
-                          )}
+                            Number(
+                              declaracao.funcionario_id
+                            ) ===
+                            idFuncionario
 
-                          —
+                              ? "selected"
 
-                          ${App.escapeHTML(
-                            matStr
-                          )}
+                              : "";
 
-                        </option>
 
-                      `;
-                    }
-                  ).join("")}
+                          return `
 
+                            <option
+                              value="${idFuncionario}"
+                              ${selecionado}
+                            >
+
+                              ${esc(
+                                funcionario.nome_completo
+                              )}
+
+                              —
+                              ${esc(
+                                funcionario.matricula || ""
+                              )}
+
+                            </option>
+
+                          `;
+
+                        }
+
+                      )
+                      .join("")
+
+                  }
 
                 </select>
 
@@ -914,60 +1077,42 @@ const NovaDeclaracaoPage = {
 
               <div class="field">
 
-                <label for="tipo">
-
+                <label
+                  for="tipo"
+                >
                   Tipo de declaração *
-
                 </label>
 
 
                 <select
-
                   id="tipo"
-
                   class="input"
-
                   required
-
                 >
 
                   <option
-
                     value="horas"
-
                     ${
-                      decl &&
-                      decl.tipo === "horas"
-
+                      editando &&
+                      declaracao.tipo === "horas"
                         ? "selected"
-
                         : ""
                     }
-
                   >
-
                     Declaração de Horas
-
                   </option>
 
 
                   <option
-
                     value="dias"
-
                     ${
-                      decl &&
-                      decl.tipo === "dias"
-
+                      editando &&
+                      declaracao.tipo === "dias"
                         ? "selected"
-
                         : ""
                     }
-
                   >
-
                     Declaração de Dias
-
                   </option>
 
                 </select>
@@ -978,7 +1123,7 @@ const NovaDeclaracaoPage = {
 
 
             <div
-              id="camposDinamicos"
+              id="campos"
             ></div>
 
 
@@ -987,24 +1132,19 @@ const NovaDeclaracaoPage = {
               <label
                 for="observacoes"
               >
-
                 Observações
-
               </label>
 
 
               <textarea
-
                 id="observacoes"
-
                 class="input"
-
                 rows="3"
-
                 placeholder="Informações adicionais..."
-
-              >${App.escapeHTML(
-                decl?.observacoes || ""
+              >${esc(
+                declaracao?.observacoes ||
+                declaracao?.descricao ||
+                ""
               )}</textarea>
 
             </div>
@@ -1017,10 +1157,8 @@ const NovaDeclaracaoPage = {
               >
 
                 ${
-                  isEdit
-
+                  editando
                     ? "Substituir declaração (opcional)"
-
                     : "Anexar declaração"
                 }
 
@@ -1028,15 +1166,10 @@ const NovaDeclaracaoPage = {
 
 
               <input
-
                 type="file"
-
                 id="arquivo"
-
                 class="input-file"
-
-                accept=".pdf,image/jpeg,image/png,image/jpg"
-
+                accept=".pdf,.jpg,.jpeg,.png"
               >
 
 
@@ -1048,50 +1181,42 @@ const NovaDeclaracaoPage = {
                 "
               >
 
-                Formatos aceitos:
-                PDF, JPG e PNG.
+                PDF, JPG, JPEG ou PNG.
                 Máximo: 10MB.
 
               </small>
 
 
               ${
-                anexoAtual
+                declaracao?.arquivo_url
 
-                  ? `
-
-                    <p
-                      style="
-                        margin-top:10px;
-                      "
-                    >
-
-                      <a
-
-                        href="${anexoAtual}"
-
-                        target="_blank"
-
-                        class="
-                          badge
-                          badge-hours
-                        "
-
-                        style="
-                          text-decoration:none;
-                        "
-
-                      >
-
-                        📎 Visualizar Anexo Atual
-
-                      </a>
-
-                    </p>
+                  ?
 
                   `
 
-                  : ""
+                  <p
+                    style="margin-top:10px;"
+                  >
+
+                    <a
+                      href="${declaracao.arquivo_url}"
+                      target="_blank"
+                      class="badge badge-hours"
+                      style="text-decoration:none;"
+                    >
+
+                      📎 Visualizar Anexo Atual
+
+                    </a>
+
+                  </p>
+
+                  `
+
+                  :
+
+                  ""
+
               }
 
             </div>
@@ -1100,37 +1225,21 @@ const NovaDeclaracaoPage = {
             <div class="form-actions">
 
               <a
-
                 href="declaracoes.html"
-
-                class="
-                  btn
-                  btn-secondary
-                "
-
+                class="btn btn-secondary"
               >
-
                 Cancelar
-
               </a>
 
 
               <button
-
                 type="submit"
-
-                class="
-                  btn
-                  btn-primary
-                "
-
+                class="btn btn-primary"
               >
 
                 ${
-                  isEdit
-
+                  editando
                     ? "Salvar Alterações"
-
                     : "Salvar declaração"
                 }
 
@@ -1143,29 +1252,36 @@ const NovaDeclaracaoPage = {
         </div>
 
         `
+
       );
 
 
-      this.bindEvents(
-        decl
+      this.configurarCampos(
+        declaracao
       );
 
-    } catch (err) {
 
-      console.error(err);
+    } catch (
+      erro
+    ) {
+
+      console.error(
+        erro
+      );
 
       App.toast(
-
-        "Erro ao carregar formulário: " +
-        (err.message || err),
-
+        "Erro ao abrir declaração.",
         "danger"
       );
+
     }
+
   },
 
 
-  bindEvents(decl) {
+  configurarCampos(
+    declaracao
+  ) {
 
     const tipo =
       document.getElementById(
@@ -1174,353 +1290,249 @@ const NovaDeclaracaoPage = {
 
     const campos =
       document.getElementById(
-        "camposDinamicos"
+        "campos"
       );
 
 
-    const renderCampos =
-      () => {
+    function renderizar() {
 
-        if (
-          tipo.value === "horas"
-        ) {
+      if (
+        tipo.value === "horas"
+      ) {
 
-          const hInicial =
-            decl?.horaInicial || "";
+        campos.innerHTML = `
 
-          const hFinal =
-            decl?.horaFinal || "";
+          <div class="field">
 
-          const qHoras =
-            decl?.quantidadeHoras ?? "";
+            <label for="data">
+              Data *
+            </label>
 
+            <input
+              type="date"
+              id="data"
+              class="input"
+              value="${declaracao?.data || ""}"
+              required
+            >
 
-          campos.innerHTML = `
+          </div>
 
-            <div class="field">
 
-              <label for="data">
-                Data *
-              </label>
+          <div class="field">
 
-              <input
+            <label for="horaInicial">
+              Horário inicial
+            </label>
 
-                type="date"
+            <input
+              type="time"
+              id="horaInicial"
+              class="input"
+              value="${declaracao?.hora_inicial || ""}"
+            >
 
-                id="data"
+          </div>
 
-                class="input"
 
-                value="${decl?.data || ""}"
+          <div class="field">
 
-                required
+            <label for="horaFinal">
+              Horário final
+            </label>
 
-              >
+            <input
+              type="time"
+              id="horaFinal"
+              class="input"
+              value="${declaracao?.hora_final || ""}"
+            >
 
-            </div>
+          </div>
 
 
-            <div class="field">
+          <div class="field">
 
-              <label for="horaInicial">
-                Horário inicial
-              </label>
+            <label for="quantidadeHoras">
+              Quantidade de horas
+            </label>
 
-              <input
+            <input
+              type="number"
+              id="quantidadeHoras"
+              class="input"
+              step="0.5"
+              min="0"
+              value="${
+                declaracao?.quantidade_horas ??
+                ""
+              }"
+            >
 
-                type="time"
+          </div>
 
-                id="horaInicial"
+        `;
 
-                class="input"
+      } else {
 
-                value="${hInicial}"
+        campos.innerHTML = `
 
-              >
+          <div class="field">
 
-            </div>
+            <label for="dataInicial">
+              Data inicial *
+            </label>
 
+            <input
+              type="date"
+              id="dataInicial"
+              class="input"
+              value="${
+                declaracao?.data_inicio ||
+                declaracao?.data_inicial ||
+                declaracao?.data ||
+                ""
+              }"
+              required
+            >
 
-            <div class="field">
+          </div>
 
-              <label for="horaFinal">
-                Horário final
-              </label>
 
-              <input
+          <div class="field">
 
-                type="time"
+            <label for="dataFinal">
+              Data final
+            </label>
 
-                id="horaFinal"
+            <input
+              type="date"
+              id="dataFinal"
+              class="input"
+              value="${
+                declaracao?.data_fim ||
+                declaracao?.data_final ||
+                ""
+              }"
+            >
 
-                class="input"
+          </div>
 
-                value="${hFinal}"
 
-              >
+          <div class="field">
 
-            </div>
+            <label for="quantidadeDias">
+              Quantidade de dias
+            </label>
 
+            <input
+              type="number"
+              id="quantidadeDias"
+              class="input"
+              min="1"
+              step="1"
+              value="${
+                declaracao?.quantidade_dias ??
+                ""
+              }"
+            >
 
-            <div class="field">
+          </div>
 
-              <label for="quantidadeHoras">
-                Quantidade de horas
-              </label>
+        `;
 
-              <input
+      }
 
-                type="number"
 
-                id="quantidadeHoras"
+      const campoData =
+        document.getElementById(
+          "data"
+        ) ||
 
-                class="input"
-
-                step="0.5"
-
-                min="0"
-
-                value="${qHoras}"
-
-                placeholder="Ex: 2"
-
-              >
-
-            </div>
-
-          `;
-
-        } else {
-
-          const dInicial =
-
-            decl?.dataInicial ||
-
-            decl?.data ||
-
-            "";
-
-          const dFinal =
-
-            decl?.dataFinal ||
-
-            "";
-
-          const qDias =
-
-            decl?.quantidadeDias ??
-
-            "";
-
-
-          campos.innerHTML = `
-
-            <div class="field">
-
-              <label for="dataInicial">
-                Data inicial *
-              </label>
-
-              <input
-
-                type="date"
-
-                id="dataInicial"
-
-                class="input"
-
-                value="${dInicial}"
-
-                required
-
-              >
-
-            </div>
-
-
-            <div class="field">
-
-              <label for="dataFinal">
-                Data final
-              </label>
-
-              <input
-
-                type="date"
-
-                id="dataFinal"
-
-                class="input"
-
-                value="${dFinal}"
-
-              >
-
-            </div>
-
-
-            <div class="field">
-
-              <label for="quantidadeDias">
-                Quantidade de dias
-              </label>
-
-              <input
-
-                type="number"
-
-                id="quantidadeDias"
-
-                class="input"
-
-                step="1"
-
-                min="1"
-
-                value="${qDias}"
-
-                placeholder="Ex: 1"
-
-              >
-
-            </div>
-
-          `;
-        }
-
-
-        const inputData =
-
-          document.getElementById(
-            "data"
-          )
-
-          ||
-
-          document.getElementById(
-            "dataInicial"
-          );
-
-
-        if (
-
-          inputData &&
-
-          !inputData.value
-
-        ) {
-
-          inputData.value =
-
-            new Date()
-
-              .toISOString()
-
-              .slice(0, 10);
-        }
-      };
-
-
-    tipo.addEventListener(
-      "change",
-      renderCampos
-    );
-
-
-    renderCampos();
-
-
-    document
-
-      .getElementById(
-        "declForm"
-      )
-
-      .addEventListener(
-
-        "submit",
-
-        e => this.save(
-          e,
-          decl
-        )
-      );
-  },
-
-
-  async save(
-    e,
-    declAntiga
-  ) {
-
-    e.preventDefault();
-
-
-    const selectEl =
-      document.getElementById(
-        "funcionarioSelect"
-      );
-
-
-    let rawFuncId =
-
-      selectEl
-
-        ? selectEl.value
-
-        : "";
-
-
-    if (
-
-      !rawFuncId &&
-
-      selectEl &&
-
-      selectEl.selectedIndex >= 0
-
-    ) {
-
-      const selectedOption =
-
-        selectEl.options[
-          selectEl.selectedIndex
-        ];
-
-
-      const idx =
-
-        selectedOption.getAttribute(
-          "data-index"
+        document.getElementById(
+          "dataInicial"
         );
 
 
       if (
-
-        idx !== null &&
-
-        this.funcionariosLista[idx]
-
+        campoData &&
+        !campoData.value
       ) {
 
-        rawFuncId =
+        campoData.value =
+          new Date()
+            .toISOString()
+            .slice(0, 10);
 
-          extrairIdFuncionario(
-
-            this.funcionariosLista[idx]
-
-          );
       }
+
     }
 
 
+    tipo.addEventListener(
+      "change",
+      renderizar
+    );
+
+
+    renderizar();
+
+
+    document
+      .getElementById(
+        "formDeclaracao"
+      )
+      .addEventListener(
+
+        "submit",
+
+        evento =>
+          this.salvar(
+            evento,
+            declaracao
+          )
+
+      );
+
+  },
+
+
+  /* ===================================================
+     SALVAR DECLARAÇÃO
+  =================================================== */
+
+  async salvar(
+    evento,
+    declaracaoAntiga
+  ) {
+
+    evento.preventDefault();
+
+
+    const funcionarioSelect =
+      document.getElementById(
+        "funcionario"
+      );
+
+
+    /*
+      AQUI ESTÁ A CORREÇÃO PRINCIPAL.
+
+      Pegamos DIRETAMENTE o value do select
+      e convertemos para número.
+    */
+
+    const funcionarioId =
+      Number(
+        funcionarioSelect.value
+      );
+
+
     if (
-
-      !rawFuncId ||
-
-      String(rawFuncId)
-        .trim() === ""
-
+      !Number.isInteger(
+        funcionarioId
+      ) ||
+      funcionarioId <= 0
     ) {
 
       App.toast(
@@ -1528,375 +1540,401 @@ const NovaDeclaracaoPage = {
         "Selecione um funcionário válido.",
 
         "danger"
+
+      );
+
+      console.error(
+
+        "ID recebido:",
+        funcionarioSelect.value
+
       );
 
       return;
+
     }
 
 
-    const btn =
+    const tipo =
+      document.getElementById(
+        "tipo"
+      ).value;
 
-      e.target.querySelector(
 
-        'button[type="submit"]'
+    const observacoes =
+      document.getElementById(
+        "observacoes"
+      ).value || "";
 
+
+    const arquivoInput =
+      document.getElementById(
+        "arquivo"
       );
 
 
-    btn.disabled =
-      true;
+    const botao =
+      evento.target.querySelector(
+        'button[type="submit"]'
+      );
 
 
     const textoOriginal =
-      btn.textContent;
+      botao.textContent;
+
+
+    botao.disabled =
+      true;
 
 
     try {
 
-      const tipo =
-
-        document
-
-          .getElementById("tipo")
-
-          .value;
-
-
-      const fileInput =
-
-        document.getElementById(
-          "arquivo"
-        );
-
-
       /*
-        Mantém o arquivo antigo
-        caso esteja editando e não envie
-        um novo arquivo.
+        Mantém anexo antigo
       */
 
-      let anexoData =
-
-        declAntiga?.arquivo ||
-
+      let arquivoUrl =
+        declaracaoAntiga?.arquivo_url ||
         null;
 
 
-      let nomeArquivo =
-
-        declAntiga?.nomeArquivo ||
-
+      let arquivoNome =
+        declaracaoAntiga?.arquivo_nome ||
         null;
 
 
       let tipoArquivo =
-
-        declAntiga?.tipoArquivo ||
-
+        declaracaoAntiga?.tipo_arquivo ||
         null;
 
 
       let tamanhoArquivo =
-
-        declAntiga?.tamanhoArquivo ||
-
-        0;
-
-
-      let arquivoAntigo =
-        null;
+        Number(
+          declaracaoAntiga?.tamanho_arquivo ||
+          0
+        );
 
 
-      /* =============================================
-         ENVIA NOVO ARQUIVO
-      ============================================= */
+      /*
+        Se selecionou novo arquivo,
+        envia primeiro para o Storage.
+      */
 
       if (
 
-        fileInput &&
+        arquivoInput &&
 
-        fileInput.files.length > 0
+        arquivoInput.files &&
+
+        arquivoInput.files.length > 0
 
       ) {
 
-        const file =
-
-          fileInput.files[0];
-
-
-        arquivoAntigo =
-
-          declAntiga?.arquivo ||
-
-          null;
-
-
-        btn.textContent =
+        botao.textContent =
           "Enviando arquivo...";
 
 
-        const arquivoEnviado =
+        const resultado =
+          await uploadArquivo(
 
-          await uploadArquivoSupabase(
-            file
+            arquivoInput.files[0]
+
           );
 
 
-        anexoData =
+        arquivoUrl =
+          resultado.url;
 
-          arquivoEnviado.url;
 
-
-        nomeArquivo =
-
-          arquivoEnviado.nome;
+        arquivoNome =
+          resultado.nome;
 
 
         tipoArquivo =
-
-          arquivoEnviado.tipo;
+          resultado.tipo;
 
 
         tamanhoArquivo =
+          resultado.tamanho;
 
-          arquivoEnviado.tamanho;
       }
 
 
-      const obs =
+      /*
+        Montagem dos dados exatamente
+        com os nomes da tabela.
+      */
 
-        document
+      const dados = {
 
-          .getElementById(
-            "observacoes"
-          )
-
-          .value ||
-
-        "";
-
-
-      const payload = {
-
-        funcionarioId:
-
-          String(
-            rawFuncId
-          ),
-
+        funcionario_id:
+          funcionarioId,
 
         tipo:
-
           tipo,
 
+        data:
+          null,
+
+        data_inicio:
+          null,
+
+        data_fim:
+          null,
+
+        data_inicial:
+          null,
+
+        data_final:
+          null,
+
+        hora_inicial:
+          null,
+
+        hora_final:
+          null,
+
+        quantidade_horas:
+          0,
+
+        quantidade_dias:
+          0,
 
         observacoes:
+          observacoes || null,
 
-          obs,
+        descricao:
+          observacoes || null,
 
+        arquivo_url:
+          arquivoUrl,
 
-        arquivo:
+        arquivo_nome:
+          arquivoNome,
 
-          anexoData,
-
-
-        nomeArquivo:
-
-          nomeArquivo,
-
-
-        tipoArquivo:
-
+        tipo_arquivo:
           tipoArquivo,
 
-
-        tamanhoArquivo:
-
+        tamanho_arquivo:
           tamanhoArquivo
+
       };
 
 
-      if (
-        declAntiga?.id
-      ) {
-
-        payload.id =
-          declAntiga.id;
-      }
-
-
-      /* =============================================
-         DECLARAÇÃO DE HORAS
-      ============================================= */
+      /*
+        HORAS
+      */
 
       if (
         tipo === "horas"
       ) {
 
-        payload.data =
-
-          document
-
-            .getElementById(
-              "data"
-            )
-
-            .value;
+        dados.data =
+          document.getElementById(
+            "data"
+          ).value;
 
 
-        payload.horaInicial =
-
-          document
-
-            .getElementById(
-              "horaInicial"
-            )
-
-            .value ||
-
-          null;
+        dados.hora_inicial =
+          document.getElementById(
+            "horaInicial"
+          ).value || null;
 
 
-        payload.horaFinal =
-
-          document
-
-            .getElementById(
-              "horaFinal"
-            )
-
-            .value ||
-
-          null;
+        dados.hora_final =
+          document.getElementById(
+            "horaFinal"
+          ).value || null;
 
 
-        payload.quantidadeHoras =
-
-          parseFloat(
-
-            document
-
-              .getElementById(
-                "quantidadeHoras"
-              )
-
-              .value
-
-          )
-
-          ||
-
-          0;
-
-
-        payload.dataInicial =
-          null;
-
-        payload.dataFinal =
-          null;
-
-        payload.quantidadeDias =
-          0;
+        dados.quantidade_horas =
+          Number(
+            document.getElementById(
+              "quantidadeHoras"
+            ).value
+          ) || 0;
 
       }
 
 
-      /* =============================================
-         DECLARAÇÃO DE DIAS
-      ============================================= */
+      /*
+        DIAS
+      */
 
       else {
 
-        const dIni =
-
-          document
-
-            .getElementById(
-              "dataInicial"
-            )
-
-            .value;
+        const dataInicial =
+          document.getElementById(
+            "dataInicial"
+          ).value;
 
 
-        const dFim =
-
-          document
-
-            .getElementById(
-              "dataFinal"
-            )
-
-            .value ||
-
-          dIni;
+        const dataFinal =
+          document.getElementById(
+            "dataFinal"
+          ).value ||
+          dataInicial;
 
 
-        payload.dataInicial =
-          dIni;
-
-        payload.dataFinal =
-          dFim;
-
-        payload.data =
-          dIni;
+        dados.data =
+          dataInicial;
 
 
-        payload.quantidadeDias =
-
-          parseInt(
-
-            document
-
-              .getElementById(
-                "quantidadeDias"
-              )
-
-              .value,
-
-            10
-
-          )
-
-          ||
-
-          1;
+        dados.data_inicio =
+          dataInicial;
 
 
-        payload.horaInicial =
-          null;
+        dados.data_fim =
+          dataFinal;
 
-        payload.horaFinal =
-          null;
 
-        payload.quantidadeHoras =
-          0;
+        dados.data_inicial =
+          dataInicial;
+
+
+        dados.data_final =
+          dataFinal;
+
+
+        dados.quantidade_dias =
+          Number(
+            document.getElementById(
+              "quantidadeDias"
+            ).value
+          ) || 1;
+
       }
 
 
       console.log(
-        "Payload enviado:",
-        payload
+        "DADOS QUE SERÃO ENVIADOS:",
+        dados
       );
 
 
-      btn.textContent =
+      botao.textContent =
         "Salvando...";
 
 
-      /* =============================================
-         SALVAR NO SUPABASE
-      ============================================= */
+      /*
+        NOVA DECLARAÇÃO
+      */
 
       if (
-        declAntiga?.id
+        !declaracaoAntiga
       ) {
 
-        await App.put(
+        const resposta =
+          await fetch(
 
-          "declaracoes",
+            `${REST_URL}/declaracoes`,
 
-          payload
-        );
+            {
+
+              method:
+                "POST",
+
+              headers:
+                supabaseHeaders({
+
+                  Prefer:
+                    "return=representation"
+
+                }),
+
+              body:
+                JSON.stringify(
+                  dados
+                )
+
+            }
+
+          );
+
+
+        if (
+          !resposta.ok
+        ) {
+
+          const erro =
+            await resposta.text();
+
+
+          /*
+            Se o banco rejeitou,
+            e já enviamos o arquivo,
+            tenta excluir o arquivo
+            para não deixar lixo.
+          */
+
+          if (
+            arquivoUrl &&
+            !declaracaoAntiga
+          ) {
+
+            await excluirArquivo(
+              arquivoUrl
+            );
+
+          }
+
+
+          throw new Error(
+            erro
+          );
+
+        }
+
+      }
+
+
+      /*
+        EDITAR DECLARAÇÃO
+      */
+
+      else {
+
+        const id =
+          declaracaoAntiga.id;
+
+
+        const resposta =
+          await fetch(
+
+            `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}`,
+
+            {
+
+              method:
+                "PATCH",
+
+              headers:
+                supabaseHeaders({
+
+                  Prefer:
+                    "return=representation"
+
+                }),
+
+              body:
+                JSON.stringify(
+                  dados
+                )
+
+            }
+
+          );
+
+
+        if (
+          !resposta.ok
+        ) {
+
+          throw new Error(
+            await resposta.text()
+          );
+
+        }
 
 
         /*
@@ -1906,74 +1944,81 @@ const NovaDeclaracaoPage = {
 
         if (
 
-          arquivoAntigo &&
+          declaracaoAntiga.arquivo_url &&
 
-          arquivoAntigo !== anexoData
+          declaracaoAntiga.arquivo_url !==
+            arquivoUrl
 
         ) {
 
-          await excluirArquivoSupabase(
-            arquivoAntigo
+          await excluirArquivo(
+
+            declaracaoAntiga.arquivo_url
+
           );
+
         }
 
-
-        App.toast(
-
-          "Declaração atualizada com sucesso!"
-        );
-
-      } else {
-
-        await App.add(
-
-          "declaracoes",
-
-          payload
-        );
-
-
-        App.toast(
-
-          "Declaração cadastrada com sucesso!"
-        );
       }
 
 
-      setTimeout(() => {
+      App.toast(
 
-        window.location.href =
-          "declaracoes.html";
+        declaracaoAntiga
 
-      }, 800);
+          ? "Declaração atualizada com sucesso!"
+
+          : "Declaração cadastrada com sucesso!"
+
+      );
 
 
-    } catch (err) {
+      setTimeout(
+
+        () => {
+
+          window.location.href =
+            "declaracoes.html";
+
+        },
+
+        800
+
+      );
+
+
+    } catch (
+      erro
+    ) {
 
       console.error(
-
-        "Erro ao salvar declaração:",
-
-        err
+        "ERRO AO SALVAR:",
+        erro
       );
 
 
       App.toast(
 
         "Erro ao salvar: " +
-
-        (err.message || err),
+        (
+          erro.message ||
+          erro
+        ),
 
         "danger"
+
       );
 
 
-      btn.disabled =
+      botao.disabled =
         false;
 
 
-      btn.textContent =
+      botao.textContent =
         textoOriginal;
+
     }
+
   }
+
 };
