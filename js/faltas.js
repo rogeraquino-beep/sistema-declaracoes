@@ -188,7 +188,7 @@ const FaltasPage = {
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
 
-    // Payload idêntico à estrutura exata da tabela no Supabase
+    // Envia estritamente os quatro campos presentes na tabela
     const payload = {
       funcionario_id: String(funcId),
       data_falta: dataVal,
