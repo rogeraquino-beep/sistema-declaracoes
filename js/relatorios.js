@@ -25,15 +25,15 @@ const RelatoriosPage = {
       </div>
 
       <div class="card panel no-print mb-4">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
-          <div class="form-group">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+          <div class="form-group" style="flex: 1 1 200px; margin-bottom: 0;">
             <label class="form-label">Funcionário</label>
             <select class="form-control" id="filtroFuncionario">
               <option value="todos">Todos os funcionários</option>
               ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)}</option>`).join("")}
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="flex: 1 1 180px; margin-bottom: 0;">
             <label class="form-label">Tipo de Declaração</label>
             <select class="form-control" id="filtroTipo">
               <option value="todos">Todos os tipos</option>
@@ -41,11 +41,11 @@ const RelatoriosPage = {
               <option value="dias">Dias</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="flex: 1 1 150px; margin-bottom: 0;">
             <label class="form-label">Data inicial</label>
             <input type="date" class="form-control" id="filtroInicio">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="flex: 1 1 150px; margin-bottom: 0;">
             <label class="form-label">Data final</label>
             <input type="date" class="form-control" id="filtroFim">
           </div>
