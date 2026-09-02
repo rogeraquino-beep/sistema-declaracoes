@@ -189,12 +189,12 @@ const App = (() => {
     } 
     else if (store === "faltas") {
       payload = { 
+        id: x.id ? Number(x.id) : generateId(),
         funcionario_id: x.funcionario_id || x.funcionarioId, 
         data_falta: x.data_falta || x.data, 
         motivo: x.motivo || x.tipo || 'Falta Injustificada', 
         justificativa: x.justificativa || null 
       };
-      if (x.id) payload.id = Number(x.id);
     } 
     else {
       payload = { ...x };
