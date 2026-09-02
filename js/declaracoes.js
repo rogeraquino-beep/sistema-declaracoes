@@ -17,59 +17,66 @@ const STORAGE_BUCKET = "declaracoes";
 
 async function uploadArquivoSupabase(file) {
 
-  if (!file) {
-    return null;
-  }
+  if (!file) return null;
 
-  // Limite de 10 MB
   if (file.size > 10 * 1024 * 1024) {
     throw new Error(
       "O arquivo é muito grande. Escolha um arquivo de até 10MB."
     );
   }
 
+  const tiposPermitidos = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png"
+  ];
 
-  // Limpa caracteres especiais do nome
+  if (
+    file.type &&
+    !tiposPermitidos.includes(file.type)
+  ) {
+    throw new Error(
+      "Formato não permitido. Envie PDF, JPG, JPEG ou PNG."
+    );
+  }
+
   const nomeSeguro = file.name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9._-]/g, "_");
 
-
-  // Cria nome único
-  const nomeArquivo =
-    `declaracoes/${Date.now()}_${Math.random()
+  /*
+    IMPORTANTE:
+    Como o bucket já se chama "declaracoes",
+    o arquivo será salvo dentro dele.
+  */
+  const caminhoArquivo =
+    `${Date.now()}_${Math.random()
       .toString(36)
       .slice(2, 8)}_${nomeSeguro}`;
 
-
   const urlUpload =
     `${STORAGE_SUPABASE_URL}/storage/v1/object/` +
-    `${STORAGE_BUCKET}/${nomeArquivo}`;
-
+    `${STORAGE_BUCKET}/${caminhoArquivo}`;
 
   const resposta = await fetch(urlUpload, {
-
     method: "POST",
 
     headers: {
-
       "apikey": STORAGE_SUPABASE_KEY,
 
       "Authorization":
         `Bearer ${STORAGE_SUPABASE_KEY}`,
 
       "Content-Type":
-        file.type || "application/octet-stream",
+        file.type ||
+        "application/octet-stream",
 
       "x-upsert": "false"
-
     },
 
     body: file
-
   });
-
 
   if (!resposta.ok) {
 
@@ -85,15 +92,11 @@ async function uploadArquivoSupabase(file) {
       "Erro ao enviar o arquivo para o Supabase: " +
       erro
     );
-
   }
 
-
-  // URL pública do arquivo
   const urlPublica =
     `${STORAGE_SUPABASE_URL}/storage/v1/object/public/` +
-    `${STORAGE_BUCKET}/${nomeArquivo}`;
-
+    `${STORAGE_BUCKET}/${caminhoArquivo}`;
 
   return {
 
@@ -110,94 +113,83 @@ async function uploadArquivoSupabase(file) {
       file.size,
 
     caminho:
-      nomeArquivo
-
+      caminhoArquivo
   };
-
 }
 
 
 /* =====================================================
-   EXCLUIR ARQUIVO DO STORAGE
+   EXCLUIR ARQUIVO DO SUPABASE STORAGE
 ===================================================== */
 
 async function excluirArquivoSupabase(urlArquivo) {
 
-  if (!urlArquivo) {
-    return;
-  }
-
+  if (!urlArquivo) return;
 
   try {
 
     const parte =
       `/object/public/${STORAGE_BUCKET}/`;
 
-
     const indice =
       urlArquivo.indexOf(parte);
 
-
     if (indice === -1) {
+      console.warn(
+        "Não foi possível identificar o caminho do arquivo."
+      );
+
       return;
     }
-
 
     const caminho =
       urlArquivo.substring(
         indice + parte.length
       );
 
-
     const urlDelete =
       `${STORAGE_SUPABASE_URL}/storage/v1/object/` +
       `${STORAGE_BUCKET}/${caminho}`;
 
-
     const resposta =
-      await fetch(
-        urlDelete,
-        {
+      await fetch(urlDelete, {
 
-          method:
-            "DELETE",
+        method:
+          "DELETE",
 
-          headers: {
+        headers: {
 
-            "apikey":
-              STORAGE_SUPABASE_KEY,
+          "apikey":
+            STORAGE_SUPABASE_KEY,
 
-            "Authorization":
-              `Bearer ${STORAGE_SUPABASE_KEY}`
-
-          }
-
+          "Authorization":
+            `Bearer ${STORAGE_SUPABASE_KEY}`
         }
-      );
-
+      });
 
     if (!resposta.ok) {
 
-      console.warn(
-        "Não foi possível excluir o arquivo antigo."
-      );
+      const erro =
+        await resposta.text();
 
+      console.warn(
+        "Não foi possível excluir o arquivo:",
+        erro
+      );
     }
 
   } catch (erro) {
 
     console.warn(
-      "Erro ao excluir arquivo antigo:",
+      "Erro ao excluir arquivo:",
       erro
     );
-
   }
-
 }
 
 
 /* =====================================================
-   FUNÇÃO PARA PEGAR O ID DO FUNCIONÁRIO
+   PEGAR ID DO FUNCIONÁRIO
 ===================================================== */
 
 function extrairIdFuncionario(f) {
@@ -205,7 +197,6 @@ function extrairIdFuncionario(f) {
   if (!f || typeof f !== "object") {
     return "";
   }
-
 
   const possiveisChaves = [
 
@@ -222,9 +213,7 @@ function extrairIdFuncionario(f) {
     "cpf",
 
     "matricula"
-
   ];
-
 
   for (
     const key of possiveisChaves
@@ -237,20 +226,15 @@ function extrairIdFuncionario(f) {
       f[key] !== null &&
 
       String(f[key]).trim() !== ""
-
     ) {
 
       return String(
         f[key]
       );
-
     }
-
   }
 
-
   return "";
-
 }
 
 
@@ -260,22 +244,22 @@ function extrairIdFuncionario(f) {
 
 const DeclaracoesPage = {
 
-
   async init() {
 
     try {
 
       const [
+
         declaracoes,
+
         funcionarios
+
       ] = await Promise.all([
 
-        App
-          .getAll("declaracoes")
+        App.getAll("declaracoes")
           .catch(() => []),
 
-        App
-          .getAll("funcionarios")
+        App.getAll("funcionarios")
           .catch(() => [])
 
       ]);
@@ -293,16 +277,12 @@ const DeclaracoesPage = {
           const fid =
             extrairIdFuncionario(f);
 
-
           if (fid) {
 
             funcMap[fid] =
               f;
-
           }
-
         });
-
       }
 
 
@@ -335,9 +315,7 @@ const DeclaracoesPage = {
               href="nova-declaracao.html"
               class="btn btn-primary"
             >
-
               ＋ Nova Declaração
-
             </a>
 
           </div>
@@ -353,10 +331,10 @@ const DeclaracoesPage = {
               Registros
             </h3>
 
-
             <span class="badge badge-hours">
 
               ${(declaracoes || []).length}
+
               no total
 
             </span>
@@ -372,9 +350,7 @@ const DeclaracoesPage = {
         </div>
 
         `
-
       );
-
 
     } catch (err) {
 
@@ -383,18 +359,14 @@ const DeclaracoesPage = {
         err
       );
 
-
       App.toast(
 
         "Erro ao carregar dados: " +
         (err.message || err),
 
         "danger"
-
       );
-
     }
-
   },
 
 
@@ -424,7 +396,6 @@ const DeclaracoesPage = {
         </div>
 
       `;
-
     }
 
 
@@ -487,30 +458,24 @@ const DeclaracoesPage = {
 
             ${rows.map(d => {
 
-
               const fKey =
                 String(
                   d.funcionarioId || ""
                 );
 
-
               const f =
                 funcMap[fKey];
 
-
               const isHoras =
                 d.tipo === "horas";
-
 
               const dataInicial =
                 d.dataInicial ||
                 d.data;
 
-
               const dataFinal =
                 d.dataFinal ||
                 dataInicial;
-
 
               const periodo =
                 isHoras
@@ -525,14 +490,12 @@ const DeclaracoesPage = {
                       dataFinal
                     )}`;
 
-
               const qtd =
                 isHoras
 
                   ? `${d.quantidadeHoras ?? 0}h`
 
                   : `${d.quantidadeDias ?? 0} dia(s)`;
-
 
               const anexo =
                 d.arquivo;
@@ -700,7 +663,6 @@ const DeclaracoesPage = {
 
                   </td>
 
-
                 </tr>
 
               `;
@@ -715,7 +677,6 @@ const DeclaracoesPage = {
       </div>
 
     `;
-
   },
 
 
@@ -724,15 +685,12 @@ const DeclaracoesPage = {
     if (
 
       !confirm(
-
         "Tem certeza que deseja excluir esta declaração?"
-
       )
 
     ) {
 
       return;
-
     }
 
 
@@ -745,7 +703,6 @@ const DeclaracoesPage = {
         );
 
 
-      // Exclui o arquivo do Storage
       if (
         declaracao?.arquivo
       ) {
@@ -753,17 +710,12 @@ const DeclaracoesPage = {
         await excluirArquivoSupabase(
           declaracao.arquivo
         );
-
       }
 
 
-      // Exclui a declaração do banco
       await App.remove(
-
         "declaracoes",
-
         id
-
       );
 
 
@@ -774,11 +726,9 @@ const DeclaracoesPage = {
 
       this.init();
 
-
     } catch (err) {
 
       console.error(err);
-
 
       App.toast(
 
@@ -786,11 +736,8 @@ const DeclaracoesPage = {
         (err.message || err),
 
         "danger"
-
       );
-
     }
-
   }
 
 };
@@ -802,7 +749,6 @@ const DeclaracoesPage = {
 
 const NovaDeclaracaoPage = {
 
-
   funcionariosLista: [],
 
 
@@ -813,13 +759,11 @@ const NovaDeclaracaoPage = {
         window.location.search
       );
 
-
     const id =
       params.get("id");
 
 
     try {
-
 
       this.funcionariosLista =
 
@@ -842,7 +786,6 @@ const NovaDeclaracaoPage = {
               id
             )
             .catch(() => null);
-
       }
 
 
@@ -862,32 +805,21 @@ const NovaDeclaracaoPage = {
 
       App.layout(
 
-
         isEdit
-
           ? "Editar Declaração"
-
           : "Nova Declaração",
 
-
         isEdit
-
           ? "Atualização dos dados da declaração"
-
           : "Lançamento e anexação do documento",
-
 
         `
 
         <div class="card panel">
 
-
           <form
-
             id="declForm"
-
             class="form"
-
           >
 
 
@@ -896,10 +828,7 @@ const NovaDeclaracaoPage = {
 
               <div class="field">
 
-
-                <label
-                  for="funcionarioSelect"
-                >
+                <label for="funcionarioSelect">
 
                   Funcionário *
 
@@ -927,10 +856,8 @@ const NovaDeclaracaoPage = {
                   ${this.funcionariosLista.map(
                     (f, idx) => {
 
-
                       const realId =
                         extrairIdFuncionario(f);
-
 
                       const selected =
 
@@ -942,11 +869,9 @@ const NovaDeclaracaoPage = {
 
                           : "";
 
-
                       const nomeStr =
                         f.nome ||
                         "Funcionário";
-
 
                       const matStr =
                         f.matricula ||
@@ -978,19 +903,16 @@ const NovaDeclaracaoPage = {
                         </option>
 
                       `;
-
                     }
                   ).join("")}
 
 
                 </select>
 
-
               </div>
 
 
               <div class="field">
-
 
                 <label for="tipo">
 
@@ -1008,7 +930,6 @@ const NovaDeclaracaoPage = {
                   required
 
                 >
-
 
                   <option
 
@@ -1049,12 +970,9 @@ const NovaDeclaracaoPage = {
 
                   </option>
 
-
                 </select>
 
-
               </div>
-
 
             </div>
 
@@ -1065,7 +983,6 @@ const NovaDeclaracaoPage = {
 
 
             <div class="field">
-
 
               <label
                 for="observacoes"
@@ -1084,20 +1001,16 @@ const NovaDeclaracaoPage = {
 
                 rows="3"
 
-                placeholder="
-                  Informações adicionais...
-                "
+                placeholder="Informações adicionais..."
 
               >${App.escapeHTML(
                 decl?.observacoes || ""
               )}</textarea>
 
-
             </div>
 
 
             <div class="field">
-
 
               <label
                 for="arquivo"
@@ -1122,12 +1035,7 @@ const NovaDeclaracaoPage = {
 
                 class="input-file"
 
-                accept="
-                  .pdf,
-                  image/jpeg,
-                  image/png,
-                  image/jpg
-                "
+                accept=".pdf,image/jpeg,image/png,image/jpg"
 
               >
 
@@ -1186,12 +1094,10 @@ const NovaDeclaracaoPage = {
                   : ""
               }
 
-
             </div>
 
 
             <div class="form-actions">
-
 
               <a
 
@@ -1230,17 +1136,13 @@ const NovaDeclaracaoPage = {
 
               </button>
 
-
             </div>
 
-
           </form>
-
 
         </div>
 
         `
-
       );
 
 
@@ -1248,11 +1150,9 @@ const NovaDeclaracaoPage = {
         decl
       );
 
-
     } catch (err) {
 
       console.error(err);
-
 
       App.toast(
 
@@ -1260,22 +1160,17 @@ const NovaDeclaracaoPage = {
         (err.message || err),
 
         "danger"
-
       );
-
     }
-
   },
 
 
   bindEvents(decl) {
 
-
     const tipo =
       document.getElementById(
         "tipo"
       );
-
 
     const campos =
       document.getElementById(
@@ -1286,19 +1181,15 @@ const NovaDeclaracaoPage = {
     const renderCampos =
       () => {
 
-
         if (
           tipo.value === "horas"
         ) {
 
-
           const hInicial =
             decl?.horaInicial || "";
 
-
           const hFinal =
             decl?.horaFinal || "";
-
 
           const qHoras =
             decl?.quantidadeHoras ?? "";
@@ -1306,16 +1197,11 @@ const NovaDeclaracaoPage = {
 
           campos.innerHTML = `
 
-
             <div class="field">
 
-
               <label for="data">
-
                 Data *
-
               </label>
-
 
               <input
 
@@ -1331,21 +1217,14 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
 
             <div class="field">
 
-
-              <label
-                for="horaInicial"
-              >
-
+              <label for="horaInicial">
                 Horário inicial
-
               </label>
-
 
               <input
 
@@ -1359,21 +1238,14 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
 
             <div class="field">
 
-
-              <label
-                for="horaFinal"
-              >
-
+              <label for="horaFinal">
                 Horário final
-
               </label>
-
 
               <input
 
@@ -1387,21 +1259,14 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
 
             <div class="field">
 
-
-              <label
-                for="quantidadeHoras"
-              >
-
+              <label for="quantidadeHoras">
                 Quantidade de horas
-
               </label>
-
 
               <input
 
@@ -1421,14 +1286,11 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
           `;
 
-
         } else {
-
 
           const dInicial =
 
@@ -1438,13 +1300,11 @@ const NovaDeclaracaoPage = {
 
             "";
 
-
           const dFinal =
 
             decl?.dataFinal ||
 
             "";
-
 
           const qDias =
 
@@ -1455,18 +1315,11 @@ const NovaDeclaracaoPage = {
 
           campos.innerHTML = `
 
-
             <div class="field">
 
-
-              <label
-                for="dataInicial"
-              >
-
+              <label for="dataInicial">
                 Data inicial *
-
               </label>
-
 
               <input
 
@@ -1482,21 +1335,14 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
 
             <div class="field">
 
-
-              <label
-                for="dataFinal"
-              >
-
+              <label for="dataFinal">
                 Data final
-
               </label>
-
 
               <input
 
@@ -1510,21 +1356,14 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
 
             <div class="field">
 
-
-              <label
-                for="quantidadeDias"
-              >
-
+              <label for="quantidadeDias">
                 Quantidade de dias
-
               </label>
-
 
               <input
 
@@ -1544,11 +1383,9 @@ const NovaDeclaracaoPage = {
 
               >
 
-
             </div>
 
           `;
-
         }
 
 
@@ -1580,18 +1417,13 @@ const NovaDeclaracaoPage = {
               .toISOString()
 
               .slice(0, 10);
-
         }
-
       };
 
 
     tipo.addEventListener(
-
       "change",
-
       renderCampos
-
     );
 
 
@@ -1612,9 +1444,7 @@ const NovaDeclaracaoPage = {
           e,
           decl
         )
-
       );
-
   },
 
 
@@ -1622,7 +1452,6 @@ const NovaDeclaracaoPage = {
     e,
     declAntiga
   ) {
-
 
     e.preventDefault();
 
@@ -1651,7 +1480,6 @@ const NovaDeclaracaoPage = {
       selectEl.selectedIndex >= 0
 
     ) {
-
 
       const selectedOption =
 
@@ -1682,9 +1510,7 @@ const NovaDeclaracaoPage = {
             this.funcionariosLista[idx]
 
           );
-
       }
-
     }
 
 
@@ -1697,18 +1523,14 @@ const NovaDeclaracaoPage = {
 
     ) {
 
-
       App.toast(
 
         "Selecione um funcionário válido.",
 
         "danger"
-
       );
 
-
       return;
-
     }
 
 
@@ -1731,7 +1553,6 @@ const NovaDeclaracaoPage = {
 
     try {
 
-
       const tipo =
 
         document
@@ -1748,7 +1569,12 @@ const NovaDeclaracaoPage = {
         );
 
 
-      // Mantém o arquivo antigo
+      /*
+        Mantém o arquivo antigo
+        caso esteja editando e não envie
+        um novo arquivo.
+      */
+
       let anexoData =
 
         declAntiga?.arquivo ||
@@ -1782,7 +1608,7 @@ const NovaDeclaracaoPage = {
 
 
       /* =============================================
-         ENVIA O NOVO ARQUIVO PARA O STORAGE
+         ENVIA NOVO ARQUIVO
       ============================================= */
 
       if (
@@ -1792,7 +1618,6 @@ const NovaDeclaracaoPage = {
         fileInput.files.length > 0
 
       ) {
-
 
         const file =
 
@@ -1835,7 +1660,6 @@ const NovaDeclaracaoPage = {
         tamanhoArquivo =
 
           arquivoEnviado.tamanho;
-
       }
 
 
@@ -1852,12 +1676,7 @@ const NovaDeclaracaoPage = {
         "";
 
 
-      /* =============================================
-         PAYLOAD
-      ============================================= */
-
       const payload = {
-
 
         funcionarioId:
 
@@ -1894,7 +1713,6 @@ const NovaDeclaracaoPage = {
         tamanhoArquivo:
 
           tamanhoArquivo
-
       };
 
 
@@ -1904,7 +1722,6 @@ const NovaDeclaracaoPage = {
 
         payload.id =
           declAntiga.id;
-
       }
 
 
@@ -1915,7 +1732,6 @@ const NovaDeclaracaoPage = {
       if (
         tipo === "horas"
       ) {
-
 
         payload.data =
 
@@ -1991,7 +1807,6 @@ const NovaDeclaracaoPage = {
 
       else {
 
-
         const dIni =
 
           document
@@ -2019,10 +1834,8 @@ const NovaDeclaracaoPage = {
         payload.dataInicial =
           dIni;
 
-
         payload.dataFinal =
           dFim;
-
 
         payload.data =
           dIni;
@@ -2057,7 +1870,6 @@ const NovaDeclaracaoPage = {
 
         payload.quantidadeHoras =
           0;
-
       }
 
 
@@ -2079,20 +1891,18 @@ const NovaDeclaracaoPage = {
         declAntiga?.id
       ) {
 
-
         await App.put(
 
           "declaracoes",
 
           payload
-
         );
 
 
-        /* =========================================
-           SE TROCOU O ARQUIVO,
-           EXCLUI O ARQUIVO ANTIGO
-        ========================================= */
+        /*
+          Se substituiu o arquivo,
+          exclui o antigo.
+        */
 
         if (
 
@@ -2105,35 +1915,28 @@ const NovaDeclaracaoPage = {
           await excluirArquivoSupabase(
             arquivoAntigo
           );
-
         }
 
 
         App.toast(
 
           "Declaração atualizada com sucesso!"
-
         );
 
-
       } else {
-
 
         await App.add(
 
           "declaracoes",
 
           payload
-
         );
 
 
         App.toast(
 
           "Declaração cadastrada com sucesso!"
-
         );
-
       }
 
 
@@ -2147,13 +1950,11 @@ const NovaDeclaracaoPage = {
 
     } catch (err) {
 
-
       console.error(
 
         "Erro ao salvar declaração:",
 
         err
-
       );
 
 
@@ -2164,7 +1965,6 @@ const NovaDeclaracaoPage = {
         (err.message || err),
 
         "danger"
-
       );
 
 
@@ -2174,9 +1974,6 @@ const NovaDeclaracaoPage = {
 
       btn.textContent =
         textoOriginal;
-
     }
-
   }
-
 };
