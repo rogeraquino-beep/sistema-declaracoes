@@ -75,9 +75,9 @@ const FaltasPage = {
               </div>
 
               <div class="field">
-                <label for="faltaTipo">Tipo *</label>
+                <label for="faltaTipo">Tipo / Categoria *</label>
                 <select id="faltaTipo" class="input" required>
-                  <option value="Falta">Falta Injustificada</option>
+                  <option value="Falta Injustificada">Falta Injustificada</option>
                   <option value="Falta Justificada">Falta Justificada</option>
                   <option value="Atestado">Atestado Médico</option>
                   <option value="Licença">Licença</option>
@@ -129,15 +129,17 @@ const FaltasPage = {
             ${rows.map(f => {
               const fKey = String(f.funcionario_id || f.id_funcionario || "");
               const func = funcMap[fKey];
-              const dataFalta = f.data || f.data_falta || f.data_registro || f.created_at;
+              const dataFalta = f.data_falta || f.data_registro || f.data_inicio || f.data || f.created_at;
+              const tipoFalta = f.tipo_falta || f.tipo || f.categoria || f.motivo || "Falta";
+              const justFalta = f.justificativa || f.observacoes || f.observacao || f.descricao || "—";
 
               return `
                 <tr>
                   <td><code>#${f.id}</code></td>
                   <td><strong>${App.escapeHTML(func?.nome_completo || func?.nome || "Funcionário não encontrado")}</strong></td>
                   <td>${App.formatDate(dataFalta)}</td>
-                  <td><span class="badge badge-days">${App.escapeHTML(f.tipo || "Falta")}</span></td>
-                  <td>${App.escapeHTML(f.justificativa || f.observacao || f.descricao || "—")}</td>
+                  <td><span class="badge badge-days">${App.escapeHTML(tipoFalta)}</span></td>
+                  <td>${App.escapeHTML(justFalta)}</td>
                   <td class="no-print">
                     <button class="btn btn-danger btn-sm" onclick="FaltasPage.deleteItem('${f.id}')">Excluir</button>
                   </td>
@@ -189,15 +191,13 @@ const FaltasPage = {
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
 
-    // Envia 'data' e 'data_falta' para garantir compatibilidade com o nome da coluna no seu Supabase
-    const payload = {
+    // Tentativa 1: Estrutura com nomes padronizados no Supabase (data_falta e tipo_falta)
+    let payload = {
       funcionario_id: String(funcId),
-      data: dataVal,
       data_falta: dataVal,
-      tipo: tipoVal,
+      tipo_falta: tipoVal,
       justificativa: justVal,
-      observacao: justVal,
-      descricao: justVal
+      observacoes: justVal
     };
 
     try {
@@ -205,23 +205,25 @@ const FaltasPage = {
       App.toast("Falta registrada com sucesso!");
       this.closeModal();
       this.init();
-    } catch (err) {
-      console.error("Erro ao salvar falta:", err);
-      
-      // Se der erro de coluna 'data', tenta enviar sem o campo 'data'
-      if (err.message && err.message.includes("column of 'faltas'")) {
-        try {
-          delete payload.data;
-          await App.add("faltas", payload);
-          App.toast("Falta registrada com sucesso!");
-          this.closeModal();
-          this.init();
-          return;
-        } catch (err2) {
-          App.toast("Erro ao salvar: " + err2.message, "danger");
-        }
-      } else {
-        App.toast("Erro ao salvar: " + err.message, "danger");
+    } catch (err1) {
+      console.warn("Tentativa 1 falhou, tentando estrutura alternativa...", err1);
+
+      // Tentativa 2: Mapeamento enxuto adaptado para colunas dinâmicas
+      try {
+        const payloadAlt = {
+          funcionario_id: String(funcId),
+          data_inicio: dataVal,
+          motivo: tipoVal,
+          descricao: justVal
+        };
+
+        await App.add("faltas", payloadAlt);
+        App.toast("Falta registrada com sucesso!");
+        this.closeModal();
+        this.init();
+      } catch (err2) {
+        console.error("Erro final ao salvar falta:", err2);
+        App.toast("Erro ao salvar: " + (err2.message || err1.message), "danger");
       }
     } finally {
       btn.disabled = false;
