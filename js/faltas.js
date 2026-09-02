@@ -1,118 +1,108 @@
-function extrairIdFuncionario(f) {
-  if (!f || typeof f !== 'object') return "";
-  const possiveisChaves = ['id', 'funcionario_id', 'id_funcionario', 'codigo', 'cpf', 'matricula'];
-  for (const key of possiveisChaves) {
-    if (f[key] !== undefined && f[key] !== null && String(f[key]).trim() !== "") {
-      return String(f[key]);
-    }
-  }
-  return "";
-}
-
 const FaltasPage = {
-  funcionariosLista: [],
-
   async init() {
-    try {
-      const [faltas, funcionarios] = await Promise.all([
-        App.getAll("faltas").catch(() => []),
-        App.getAll("funcionarios").catch(() => [])
-      ]);
+    const funcs = await App.getAll("funcionarios");
+    const faltas = await App.getAll("faltas");
 
-      this.funcionariosLista = funcionarios || [];
+    this.state = {
+      funcionarios: funcs,
+      faltas: faltas
+    };
 
-      const funcMap = {};
-      if (Array.isArray(funcionarios)) {
-        funcionarios.forEach(f => {
-          const fid = extrairIdFuncionario(f);
-          if (fid) funcMap[fid] = f;
-        });
-      }
+    App.layout("Controle de Faltas", "Registre e consulte as faltas dos funcionários.", `
+      <style>
+        .custom-modal-form {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          padding: 8px 4px;
+        }
+        .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        @media (max-width: 576px) {
+          .form-row { grid-template-columns: 1fr; }
+        }
+        .form-field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .form-field label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+        }
+        .form-field input, 
+        .form-field select, 
+        .form-field textarea {
+          width: 100%;
+          padding: 10px 14px;
+          font-size: 14px;
+          color: #1f2937;
+          background-color: #f9fafb;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          outline: none;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+        .form-field input:focus, 
+        .form-field select:focus, 
+        .form-field textarea:focus {
+          background-color: #ffffff;
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .form-field textarea {
+          resize: vertical;
+          min-height: 80px;
+        }
+      </style>
 
-      App.layout("Controle de Faltas", "Registre e consulte as faltas dos funcionários.", `
-        <div class="page-header">
-          <div>
-            <h2>Controle de Faltas</h2>
-            <p>Registre e consulte as faltas dos funcionários.</p>
-          </div>
-          <div class="actions no-print">
-            <button class="btn btn-primary" onclick="FaltasPage.openModal()">＋ Registrar falta</button>
-          </div>
+      <div class="page-header" style="margin-bottom: 24px;">
+        <div>
+          <h2 style="margin: 0; font-size: 24px; color: #111827;">Controle de Faltas</h2>
+          <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">Registre e consulte as faltas dos funcionários.</p>
         </div>
-
-        <div class="card panel">
-          <div class="panel-header">
-            <h3>Registros de Faltas</h3>
-            <span class="badge badge-days">${(faltas || []).length} no total</span>
-          </div>
-          ${this.renderTable(faltas || [], funcMap)}
+        <div class="actions no-print">
+          <button class="btn btn-primary" id="btnNovaFalta" style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 16px;">＋</span> Registrar falta
+          </button>
         </div>
+      </div>
 
-        <!-- Modal Registrar Falta -->
-        <div id="modalFalta" class="modal-backdrop" style="display:none;">
-          <div class="modal card">
-            <div class="modal-header">
-              <h3>Registrar falta</h3>
-              <button type="button" class="close-btn" onclick="FaltasPage.closeModal()">&times;</button>
-            </div>
-            <form id="faltaForm" class="form">
-              <input type="hidden" id="faltaId">
-              <div class="field">
-                <label for="faltaFuncionario">Funcionário *</label>
-                <select id="faltaFuncionario" class="input" required>
-                  <option value="">Selecione...</option>
-                  ${this.funcionariosLista.map((f, idx) => {
-                    const fid = extrairIdFuncionario(f);
-                    const nome = f.nome_completo || f.nome || "Funcionário";
-                    return `<option value="${fid}" data-index="${idx}">${App.escapeHTML(nome)}</option>`;
-                  }).join("")}
-                </select>
-              </div>
-
-              <div class="field">
-                <label for="faltaData">Data *</label>
-                <input type="date" id="faltaData" class="input" required>
-              </div>
-
-              <div class="field">
-                <label for="faltaMotivo">Motivo *</label>
-                <select id="faltaMotivo" class="input" required>
-                  <option value="Falta Injustificada">Falta Injustificada</option>
-                  <option value="Falta Justificada">Falta Justificada</option>
-                  <option value="Atestado Médico">Atestado Médico</option>
-                  <option value="Licença">Licença</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label for="faltaJustificativa">Justificativa / Observação</label>
-                <textarea id="faltaJustificativa" class="input" rows="3" placeholder="Detalhes ou justificativa..."></textarea>
-              </div>
-
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="FaltasPage.closeModal()">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar</button>
-              </div>
-            </form>
-          </div>
+      <div class="card panel">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0; font-size: 18px;">Registros de Faltas</h3>
+          <span class="badge badge-hours">${faltas.length} no total</span>
         </div>
-      `);
+        <div id="tabelaFaltasContainer"></div>
+      </div>
+    `);
 
-      this.bindEvents();
-    } catch (err) {
-      console.error("Erro ao carregar faltas:", err);
-      App.toast("Erro ao carregar faltas", "danger");
-    }
+    this.bindEvents();
+    this.render();
   },
 
-  renderTable(list, funcMap) {
-    if (!list || !list.length) {
-      return `<div class="empty"><strong>Nenhuma falta registrada</strong><p>Clique em "+ Registrar falta" para adicionar.</p></div>`;
+  bindEvents() {
+    document.getElementById("btnNovaFalta")?.addEventListener("click", () => this.openModalFalta());
+  },
+
+  render() {
+    const container = document.getElementById("tabelaFaltasContainer");
+    if (!container) return;
+
+    const { faltas, funcionarios } = this.state;
+    const mapFunc = Object.fromEntries(funcionarios.map(f => [f.id, f]));
+
+    if (!faltas.length) {
+      container.innerHTML = `<div class="empty"><strong>Nenhuma falta registrada</strong>Clique em "Registrar falta" para adicionar o primeiro registro.</div>`;
+      return;
     }
 
-    const rows = [...list].sort((a, b) => String(b.id || "").localeCompare(String(a.id || "")));
-
-    return `
+    container.innerHTML = `
       <div class="table-wrap">
         <table>
           <thead>
@@ -122,23 +112,21 @@ const FaltasPage = {
               <th>Data</th>
               <th>Motivo</th>
               <th>Justificativa / Observação</th>
-              <th class="no-print">Ações</th>
+              <th style="text-align: right;">Ações</th>
             </tr>
           </thead>
           <tbody>
-            ${rows.map(f => {
-              const fKey = String(f.funcionario_id || "");
-              const func = funcMap[fKey];
-
+            ${faltas.map(f => {
+              const func = mapFunc[f.funcionario_id];
               return `
                 <tr>
-                  <td><code>#${f.id || "—"}</code></td>
-                  <td><strong>${App.escapeHTML(func?.nome_completo || func?.nome || "Funcionário não encontrado")}</strong></td>
+                  <td><code style="background:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:12px;">#${f.id}</code></td>
+                  <td><strong>${App.escapeHTML(func?.nome || "Funcionário removido")}</strong></td>
                   <td>${App.formatDate(f.data_falta)}</td>
-                  <td><span class="badge badge-days">${App.escapeHTML(f.motivo || "Falta")}</span></td>
+                  <td><span class="badge badge-days">${App.escapeHTML(f.motivo || "Falta Injustificada")}</span></td>
                   <td>${App.escapeHTML(f.justificativa || "—")}</td>
-                  <td class="no-print">
-                    <button class="btn btn-danger btn-sm" onclick="FaltasPage.deleteItem('${f.id}')">Excluir</button>
+                  <td style="text-align: right;">
+                    <button class="btn btn-danger btn-sm" onclick="FaltasPage.excluir('${f.id}')">Excluir</button>
                   </td>
                 </tr>
               `;
@@ -149,74 +137,94 @@ const FaltasPage = {
     `;
   },
 
-  bindEvents() {
-    const form = document.getElementById("faltaForm");
-    if (form) {
-      form.addEventListener("submit", e => this.save(e));
-    }
+  openModalFalta() {
+    const { funcionarios } = this.state;
+
+    App.openModal({
+      title: "Registrar falta",
+      body: `
+        <form id="formFalta" class="custom-modal-form">
+          <div class="form-field">
+            <label for="faltaFuncionario">Funcionário *</label>
+            <select id="faltaFuncionario" required>
+              <option value="">Selecione um funcionário...</option>
+              ${funcionarios.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)}</option>`).join("")}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-field">
+              <label for="faltaData">Data da falta *</label>
+              <input type="date" id="faltaData" value="${new Date().toISOString().slice(0,10)}" required>
+            </div>
+            <div class="form-field">
+              <label for="faltaMotivo">Motivo *</label>
+              <select id="faltaMotivo" required>
+                <option value="Falta Injustificada">Falta Injustificada</option>
+                <option value="Falta Justificada">Falta Justificada</option>
+                <option value="Atestado Médico">Atestado Médico</option>
+                <option value="Licença / Outros">Licença / Outros</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label for="faltaJustificativa">Justificativa / Observação</label>
+            <textarea id="faltaJustificativa" placeholder="Digite aqui os detalhes ou justificativa da falta..."></textarea>
+          </div>
+        </form>
+      `,
+      footer: `
+        <button class="btn btn-secondary" data-close-modal>Cancelar</button>
+        <button class="btn btn-primary" id="btnSalvarFalta">Salvar Registro</button>
+      `
+    });
+
+    document.getElementById("btnSalvarFalta")?.addEventListener("click", () => this.salvar());
   },
 
-  openModal() {
-    const modal = document.getElementById("modalFalta");
-    if (modal) {
-      document.getElementById("faltaForm").reset();
-      document.getElementById("faltaId").value = "";
-      document.getElementById("faltaData").value = new Date().toISOString().slice(0, 10);
-      modal.style.display = "flex";
-    }
-  },
+  async salvar() {
+    const funcId = document.getElementById("faltaFuncionario")?.value;
+    const data = document.getElementById("faltaData")?.value;
+    const motivo = document.getElementById("faltaMotivo")?.value;
+    const justificativa = document.getElementById("faltaJustificativa")?.value;
 
-  closeModal() {
-    const modal = document.getElementById("modalFalta");
-    if (modal) modal.style.display = "none";
-  },
-
-  async save(e) {
-    e.preventDefault();
-
-    const funcSelect = document.getElementById("faltaFuncionario");
-    const funcId = funcSelect ? funcSelect.value : "";
-    const dataVal = document.getElementById("faltaData").value;
-    const motivoVal = document.getElementById("faltaMotivo").value;
-    const justVal = document.getElementById("faltaJustificativa").value || "";
-
-    if (!funcId) {
-      App.toast("Selecione um funcionário.", "danger");
+    if (!funcId || !data) {
+      App.toast("Preencha os campos obrigatórios.", "warning");
       return;
     }
 
-    const btn = e.target.querySelector('button[type="submit"]');
-    btn.disabled = true;
-
-    const payload = {
-      funcionario_id: String(funcId),
-      data_falta: dataVal,
-      motivo: motivoVal,
-      justificativa: justVal
-    };
-
     try {
-      await App.add("faltas", payload);
-      App.toast("Falta registrada com sucesso!");
-      this.closeModal();
-      this.init();
+      await App.add("faltas", {
+        funcionario_id: funcId,
+        data_falta: data,
+        motivo: motivo,
+        justificativa: justificativa
+      });
+
+      App.toast("Falta registrada com sucesso!", "success");
+      App.closeModal();
+
+      // Recarrega lista
+      this.state.faltas = await App.getAll("faltas");
+      this.render();
     } catch (err) {
-      console.error("Erro ao salvar falta:", err);
-      App.toast("Erro ao salvar: " + err.message, "danger");
-    } finally {
-      btn.disabled = false;
+      console.error(err);
+      App.toast("Erro ao salvar falta.", "danger");
     }
   },
 
-  async deleteItem(id) {
+  async excluir(id) {
     if (!confirm("Tem certeza que deseja excluir esta falta?")) return;
+
     try {
       await App.remove("faltas", id);
-      App.toast("Falta excluída com sucesso!");
-      this.init();
+      App.toast("Falta removida!", "info");
+      this.state.faltas = await App.getAll("faltas");
+      this.render();
     } catch (err) {
       console.error(err);
-      App.toast("Erro ao excluir: " + err.message, "danger");
+      App.toast("Erro ao excluir registro.", "danger");
     }
   }
 };
