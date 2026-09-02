@@ -150,7 +150,7 @@ const App = (() => {
     if (!x) return x;
     if (store === "funcionarios") return { id: String(x.id), nome: x.nome_completo || x.nome, matricula: x.matricula, cargo: x.cargo_funcao || x.cargo, setor: x.setor, vinculo: x.tipo_vinculo || x.vinculo, dataAdmissao: x.data_admissao || x.dataAdmissao, cpf: x.cpf, telefone: x.telefone, email: x.email, status: x.status, observacoes: x.observacoes };
     if (store === "declaracoes") return { id: String(x.id), funcionarioId: String(x.funcionario_id), tipo: x.tipo, data: x.data, dataInicial: x.data_inicial, dataFinal: x.data_final, horaInicial: x.hora_inicial, horaFinal: x.hora_final, quantidadeHoras: x.quantidade_horas, quantidadeDias: x.quantidade_dias, observacoes: x.observacoes };
-    if (store === "faltas") return { id: String(x.id), funcionarioId: String(x.funcionario_id), data: x.data, tipo: x.tipo, justificativa: x.justificativa, observacoes: x.observacoes, createdAt: x.created_at };
+    if (store === "faltas") return { id: String(x.id), funcionario_id: String(x.funcionario_id), data_falta: x.data_falta, motivo: x.motivo, justificativa: x.justificativa, createdAt: x.created_at };
     return { ...x, id: String(x.id) };
   }
 
@@ -189,13 +189,12 @@ const App = (() => {
     } 
     else if (store === "faltas") {
       payload = { 
-        id: x.id ? Number(x.id) : generateId(),
-        funcionario_id: Number(x.funcionarioId), 
-        data: x.data, 
-        tipo: x.tipo || 'Falta', 
-        justificativa: x.justificativa || null, 
-        observacoes: x.observacoes || null 
+        funcionario_id: x.funcionario_id || x.funcionarioId, 
+        data_falta: x.data_falta || x.data, 
+        motivo: x.motivo || x.tipo || 'Falta Injustificada', 
+        justificativa: x.justificativa || null 
       };
+      if (x.id) payload.id = Number(x.id);
     } 
     else {
       payload = { ...x };
