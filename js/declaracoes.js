@@ -1,33 +1,26 @@
 /* =====================================================
-   CONFIGURAÇÃO
+   CONFIGURAÇÃO ESPECÍFICA DAS DECLARAÇÕES
+   O app.js já possui SUPABASE_URL e SUPABASE_KEY.
 ===================================================== */
 
-const SUPABASE_URL =
-  "https://cujlebxqqposqomtfvdk.supabase.co";
+const DECL_REST_URL =
+  "https://cujlebxqqposqomtfvdk.supabase.co/rest/v1";
 
-const SUPABASE_KEY =
-  "sb_publishable_qgZR9bAPNGjYoG-2i_Z5Jg_1Rg3UzBx";
+const DECL_STORAGE_URL =
+  "https://cujlebxqqposqomtfvdk.supabase.co/storage/v1";
 
-const BUCKET =
+const DECL_BUCKET =
   "declaracoes";
-
-const REST_URL =
-  `${SUPABASE_URL}/rest/v1`;
-
-const STORAGE_URL =
-  `${SUPABASE_URL}/storage/v1`;
 
 
 /* =====================================================
-   CABEÇALHOS
+   HEADERS
 ===================================================== */
 
-function supabaseHeaders(extra = {}) {
+function declaracoesHeaders(extra = {}) {
 
   return {
-
-    apikey:
-      SUPABASE_KEY,
+    apikey: SUPABASE_KEY,
 
     Authorization:
       `Bearer ${SUPABASE_KEY}`,
@@ -36,29 +29,23 @@ function supabaseHeaders(extra = {}) {
       "application/json",
 
     ...extra
-
   };
 
 }
 
 
 /* =====================================================
-   UPLOAD DO ARQUIVO
+   UPLOAD DE PDF / JPG / JPEG / PNG
 ===================================================== */
 
-async function uploadArquivo(file) {
+async function uploadArquivoDeclaracao(file) {
 
   if (!file) {
-
     return null;
-
   }
 
 
-  if (
-    file.size >
-    10 * 1024 * 1024
-  ) {
+  if (file.size > 10 * 1024 * 1024) {
 
     throw new Error(
       "O arquivo deve ter no máximo 10MB."
@@ -68,101 +55,87 @@ async function uploadArquivo(file) {
 
 
   const tiposPermitidos = [
-
     "application/pdf",
-
     "image/jpeg",
-
     "image/png"
-
   ];
 
 
   if (
-    !tiposPermitidos.includes(
-      file.type
-    )
+    file.type &&
+    !tiposPermitidos.includes(file.type)
   ) {
 
     throw new Error(
-      "Envie somente PDF, JPG, JPEG ou PNG."
+      "Formato não permitido. Use PDF, JPG, JPEG ou PNG."
     );
 
   }
 
 
-  const nomeSeguro =
-    file.name
-      .normalize("NFD")
-      .replace(
-        /[\u0300-\u036f]/g,
-        ""
-      )
-      .replace(
-        /[^a-zA-Z0-9._-]/g,
-        "_"
-      );
+  const nomeSeguro = file.name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
 
 
   const caminho =
     `${Date.now()}_${Math.random()
       .toString(36)
-      .substring(2, 8)}_${nomeSeguro}`;
+      .substring(2, 9)}_${nomeSeguro}`;
 
 
-  const resposta =
-    await fetch(
-
-      `${STORAGE_URL}/object/${BUCKET}/${caminho}`,
-
-      {
-
-        method:
-          "POST",
-
-        headers: {
-
-          ...supabaseHeaders(),
-
-          "Content-Type":
-            file.type,
-
-          "x-upsert":
-            "false"
-
-        },
-
-        body:
-          file
-
-      }
-
-    );
+  const urlUpload =
+    `${DECL_STORAGE_URL}/object/` +
+    `${DECL_BUCKET}/${caminho}`;
 
 
-  if (
-    !resposta.ok
-  ) {
+  const resposta = await fetch(
+    urlUpload,
+    {
+      method: "POST",
+
+      headers: {
+        apikey:
+          SUPABASE_KEY,
+
+        Authorization:
+          `Bearer ${SUPABASE_KEY}`,
+
+        "Content-Type":
+          file.type ||
+          "application/octet-stream",
+
+        "x-upsert":
+          "false"
+      },
+
+      body: file
+    }
+  );
+
+
+  if (!resposta.ok) {
 
     const erro =
       await resposta.text();
 
     console.error(
-      "Erro no Storage:",
+      "Erro no upload:",
       erro
     );
 
     throw new Error(
-      "Não foi possível enviar o arquivo."
+      "Não foi possível enviar o arquivo: " +
+      erro
     );
 
   }
 
 
   const urlPublica =
-
-    `${STORAGE_URL}/object/public/` +
-    `${BUCKET}/${caminho}`;
+    `${DECL_STORAGE_URL}/object/public/` +
+    `${DECL_BUCKET}/${caminho}`;
 
 
   return {
@@ -181,70 +154,80 @@ async function uploadArquivo(file) {
 
     caminho:
       caminho
-
   };
 
 }
 
 
 /* =====================================================
-   EXCLUIR ARQUIVO
+   EXCLUIR ARQUIVO DO STORAGE
 ===================================================== */
 
-async function excluirArquivo(url) {
+async function excluirArquivoDeclaracao(
+  urlArquivo
+) {
 
-  if (!url) {
-
+  if (!urlArquivo) {
     return;
-
   }
 
 
   try {
 
     const marcador =
-      `/object/public/${BUCKET}/`;
+      `/object/public/${DECL_BUCKET}/`;
 
 
     const posicao =
-      url.indexOf(marcador);
+      urlArquivo.indexOf(
+        marcador
+      );
 
 
-    if (
-      posicao === -1
-    ) {
-
+    if (posicao === -1) {
       return;
-
     }
 
 
     const caminho =
-      url.substring(
-        posicao +
-        marcador.length
+      urlArquivo.substring(
+        posicao + marcador.length
       );
 
 
-    await fetch(
+    const urlDelete =
+      `${DECL_STORAGE_URL}/object/` +
+      `${DECL_BUCKET}/${caminho}`;
 
-      `${STORAGE_URL}/object/${BUCKET}/${caminho}`,
 
-      {
+    const resposta =
+      await fetch(
+        urlDelete,
+        {
+          method:
+            "DELETE",
 
-        method:
-          "DELETE",
+          headers: {
+            apikey:
+              SUPABASE_KEY,
 
-        headers:
-          supabaseHeaders()
+            Authorization:
+              `Bearer ${SUPABASE_KEY}`
+          }
+        }
+      );
 
-      }
 
-    );
+    if (!resposta.ok) {
 
-  } catch (
-    erro
-  ) {
+      console.warn(
+        "Não foi possível excluir o arquivo antigo.",
+        await resposta.text()
+      );
+
+    }
+
+  } catch (erro) {
 
     console.warn(
       "Erro ao excluir arquivo:",
@@ -257,34 +240,134 @@ async function excluirArquivo(url) {
 
 
 /* =====================================================
+   PEGAR FUNCIONÁRIOS DIRETAMENTE DO SUPABASE
+===================================================== */
+
+async function buscarFuncionariosDeclaracao() {
+
+  const resposta =
+    await fetch(
+      `${DECL_REST_URL}/funcionarios` +
+      `?select=id,nome_completo,matricula` +
+      `&order=nome_completo.asc`,
+      {
+        headers:
+          declaracoesHeaders()
+      }
+    );
+
+
+  if (!resposta.ok) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  return await resposta.json();
+
+}
+
+
+/* =====================================================
+   BUSCAR DECLARAÇÕES
+===================================================== */
+
+async function buscarTodasDeclaracoes() {
+
+  const resposta =
+    await fetch(
+      `${DECL_REST_URL}/declaracoes` +
+      `?select=*` +
+      `&order=id.desc`,
+      {
+        headers:
+          declaracoesHeaders()
+      }
+    );
+
+
+  if (!resposta.ok) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  return await resposta.json();
+
+}
+
+
+/* =====================================================
+   BUSCAR UMA DECLARAÇÃO
+===================================================== */
+
+async function buscarDeclaracaoPorId(id) {
+
+  const resposta =
+    await fetch(
+      `${DECL_REST_URL}/declaracoes` +
+      `?id=eq.${encodeURIComponent(id)}` +
+      `&select=*`,
+      {
+        headers:
+          declaracoesHeaders()
+      }
+    );
+
+
+  if (!resposta.ok) {
+
+    throw new Error(
+      await resposta.text()
+    );
+
+  }
+
+
+  const dados =
+    await resposta.json();
+
+
+  return dados[0] || null;
+
+}
+
+
+/* =====================================================
    FORMATAR DATA
 ===================================================== */
 
-function formatarData(data) {
+function formatarDataDeclaracao(data) {
 
   if (!data) {
-
     return "—";
-
   }
 
 
   const partes =
     String(data)
-      .slice(0, 10)
+      .substring(0, 10)
       .split("-");
 
 
   if (
     partes.length !== 3
   ) {
-
     return data;
-
   }
 
 
-  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  return (
+    `${partes[2]}/` +
+    `${partes[1]}/` +
+    `${partes[0]}`
+  );
 
 }
 
@@ -293,9 +376,9 @@ function formatarData(data) {
    ESCAPAR HTML
 ===================================================== */
 
-function esc(value = "") {
+function escaparDeclaracao(valor = "") {
 
-  return String(value)
+  return String(valor)
 
     .replace(
       /&/g,
@@ -326,122 +409,7 @@ function esc(value = "") {
 
 
 /* =====================================================
-   CARREGAR FUNCIONÁRIOS
-===================================================== */
-
-async function carregarFuncionarios() {
-
-  const resposta =
-    await fetch(
-
-      `${REST_URL}/funcionarios?select=id,nome_completo,matricula&order=nome_completo.asc`,
-
-      {
-
-        headers:
-          supabaseHeaders()
-
-      }
-
-    );
-
-
-  if (
-    !resposta.ok
-  ) {
-
-    throw new Error(
-      await resposta.text()
-    );
-
-  }
-
-
-  return await resposta.json();
-
-}
-
-
-/* =====================================================
-   CARREGAR DECLARAÇÕES
-===================================================== */
-
-async function carregarDeclaracoes() {
-
-  const resposta =
-    await fetch(
-
-      `${REST_URL}/declaracoes?select=*&order=id.desc`,
-
-      {
-
-        headers:
-          supabaseHeaders()
-
-      }
-
-    );
-
-
-  if (
-    !resposta.ok
-  ) {
-
-    throw new Error(
-      await resposta.text()
-    );
-
-  }
-
-
-  return await resposta.json();
-
-}
-
-
-/* =====================================================
-   CARREGAR UMA DECLARAÇÃO
-===================================================== */
-
-async function carregarDeclaracao(id) {
-
-  const resposta =
-    await fetch(
-
-      `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}&select=*`,
-
-      {
-
-        headers:
-          supabaseHeaders()
-
-      }
-
-    );
-
-
-  if (
-    !resposta.ok
-  ) {
-
-    throw new Error(
-      await resposta.text()
-    );
-
-  }
-
-
-  const dados =
-    await resposta.json();
-
-
-  return dados[0] || null;
-
-}
-
-
-/* =====================================================
-   PÁGINA DE DECLARAÇÕES
+   PÁGINA DECLARAÇÕES
 ===================================================== */
 
 const DeclaracoesPage = {
@@ -455,24 +423,29 @@ const DeclaracoesPage = {
         funcionarios
       ] = await Promise.all([
 
-        carregarDeclaracoes(),
+        buscarTodasDeclaracoes(),
 
-        carregarFuncionarios()
+        buscarFuncionariosDeclaracao()
 
       ]);
 
 
-      const funcionariosMap =
-        Object.fromEntries(
+      const mapaFuncionarios =
+        {};
 
-          funcionarios.map(
-            f => [
-              String(f.id),
-              f
-            ]
-          )
 
-        );
+      funcionarios.forEach(
+        funcionario => {
+
+          mapaFuncionarios[
+            String(
+              funcionario.id
+            )
+          ] =
+            funcionario;
+
+        }
+      );
 
 
       App.layout(
@@ -521,11 +494,8 @@ const DeclaracoesPage = {
             </h3>
 
             <span class="badge badge-hours">
-
               ${declaracoes.length}
-
               no total
-
             </span>
 
           </div>
@@ -544,6 +514,10 @@ const DeclaracoesPage = {
                   Nenhuma declaração encontrada
                 </strong>
 
+                <p>
+                  Cadastre a primeira declaração.
+                </p>
+
               </div>
 
               `
@@ -560,241 +534,246 @@ const DeclaracoesPage = {
 
                     <tr>
 
-                      <th>
-                        ID
-                      </th>
+                      <th>ID</th>
 
-                      <th>
-                        Funcionário
-                      </th>
+                      <th>Funcionário</th>
 
-                      <th>
-                        Tipo
-                      </th>
+                      <th>Tipo</th>
 
-                      <th>
-                        Data / Período
-                      </th>
+                      <th>Data / Período</th>
 
-                      <th>
-                        Qtd.
-                      </th>
+                      <th>Qtd.</th>
 
-                      <th>
-                        Anexo
-                      </th>
+                      <th>Anexo</th>
 
-                      <th>
-                        Observações
-                      </th>
+                      <th>Observações</th>
 
-                      <th>
-                        Ações
-                      </th>
+                      <th>Ações</th>
 
                     </tr>
 
                   </thead>
 
+
                   <tbody>
 
-                    ${
+                    ${declaracoes.map(
+                      declaracao => {
 
-                      declaracoes.map(
-
-                        d => {
-
-                          const funcionario =
-
-                            funcionariosMap[
-                              String(
-                                d.funcionario_id
-                              )
-                            ];
+                        const funcionario =
+                          mapaFuncionarios[
+                            String(
+                              declaracao.funcionario_id
+                            )
+                          ];
 
 
-                          const horas =
-                            d.tipo === "horas";
+                        const horas =
+                          declaracao.tipo ===
+                          "horas";
 
 
-                          const dataInicial =
-                            d.data_inicio ||
-                            d.data_inicial ||
-                            d.data;
+                        const dataInicial =
+
+                          declaracao.data_inicio ||
+
+                          declaracao.data_inicial ||
+
+                          declaracao.data;
 
 
-                          const dataFinal =
-                            d.data_fim ||
-                            d.data_final ||
-                            d.data;
+                        const dataFinal =
+
+                          declaracao.data_fim ||
+
+                          declaracao.data_final ||
+
+                          declaracao.data;
 
 
-                          const periodo =
+                        const periodo =
 
-                            horas
+                          horas
 
-                              ?
+                            ?
 
-                              formatarData(
-                                d.data
-                              )
+                            formatarDataDeclaracao(
+                              declaracao.data
+                            )
 
-                              :
+                            :
 
-                              `${formatarData(
-                                dataInicial
-                              )} até ${formatarData(
-                                dataFinal
-                              )}`;
-
-
-                          const quantidade =
-
-                            horas
-
-                              ?
-
-                              `${Number(
-                                d.quantidade_horas || 0
-                              )}h`
-
-                              :
-
-                              `${Number(
-                                d.quantidade_dias || 0
-                              )} dia(s)`;
+                            `${formatarDataDeclaracao(
+                              dataInicial
+                            )} até ${formatarDataDeclaracao(
+                              dataFinal
+                            )}`;
 
 
-                          return `
+                        const quantidade =
 
-                            <tr>
+                          horas
 
-                              <td>
-                                #${d.id}
-                              </td>
+                            ?
 
+                            `${Number(
+                              declaracao.quantidade_horas ||
+                              0
+                            )}h`
 
-                              <td>
+                            :
 
-                                <strong>
-
-                                  ${esc(
-                                    funcionario?.nome_completo ||
-                                    "Funcionário não encontrado"
-                                  )}
-
-                                </strong>
-
-                              </td>
+                            `${Number(
+                              declaracao.quantidade_dias ||
+                              0
+                            )} dia(s)`;
 
 
-                              <td>
+                        return `
 
-                                <span
-                                  class="badge ${
-                                    horas
-                                      ? "badge-hours"
-                                      : "badge-days"
-                                  }"
-                                >
+                          <tr>
 
-                                  ${
-                                    horas
-                                      ? "Horas"
-                                      : "Dias"
-                                  }
-
-                                </span>
-
-                              </td>
+                            <td>
+                              #${declaracao.id}
+                            </td>
 
 
-                              <td>
-                                ${periodo}
-                              </td>
+                            <td>
 
+                              <strong>
 
-                              <td>
-                                ${quantidade}
-                              </td>
-
-
-                              <td>
-
-                                ${
-                                  d.arquivo_url
-
-                                    ?
-
-                                    `
-
-                                    <a
-                                      href="${d.arquivo_url}"
-                                      target="_blank"
-                                      class="badge badge-hours"
-                                      style="text-decoration:none;"
-                                    >
-
-                                      📎 Ver Anexo
-
-                                    </a>
-
-                                    `
-
-                                    :
-
-                                    `<span style="color:#888;">
-                                      Sem anexo
-                                    </span>`
-
-                                }
-
-                              </td>
-
-
-                              <td>
-
-                                ${esc(
-                                  d.observacoes ||
-                                  d.descricao ||
-                                  "—"
+                                ${escaparDeclaracao(
+                                  funcionario?.nome_completo ||
+                                  "Funcionário não encontrado"
                                 )}
 
-                              </td>
+                              </strong>
+
+                            </td>
 
 
-                              <td>
+                            <td>
 
-                                <a
-                                  href="nova-declaracao.html?id=${d.id}"
-                                  class="btn btn-secondary btn-sm"
-                                >
-                                  Editar
-                                </a>
+                              <span
+                                class="badge ${
+                                  horas
+                                    ? "badge-hours"
+                                    : "badge-days"
+                                }"
+                              >
+
+                                ${
+                                  horas
+                                    ? "Horas"
+                                    : "Dias"
+                                }
+
+                              </span>
+
+                            </td>
 
 
-                                <button
-                                  class="btn btn-danger btn-sm"
-                                  onclick="
-                                    DeclaracoesPage.excluir(
-                                      '${d.id}'
-                                    )
-                                  "
-                                >
-                                  Excluir
-                                </button>
+                            <td>
+                              ${periodo}
+                            </td>
 
-                              </td>
 
-                            </tr>
+                            <td>
+                              ${quantidade}
+                            </td>
 
-                          `;
 
-                        }
+                            <td>
 
-                      ).join("")
+                              ${
+                                declaracao.arquivo_url
 
-                    }
+                                  ?
+
+                                  `
+
+                                  <a
+                                    href="${declaracao.arquivo_url}"
+                                    target="_blank"
+                                    class="badge badge-hours"
+                                    style="text-decoration:none;"
+                                  >
+
+                                    📎 Ver Anexo
+
+                                  </a>
+
+                                  `
+
+                                  :
+
+                                  `
+
+                                  <span
+                                    style="color:#888;"
+                                  >
+                                    Sem anexo
+                                  </span>
+
+                                  `
+
+                              }
+
+                            </td>
+
+
+                            <td>
+
+                              ${escaparDeclaracao(
+                                declaracao.observacoes ||
+                                declaracao.descricao ||
+                                "—"
+                              )}
+
+                            </td>
+
+
+                            <td>
+
+                              <a
+                                href="
+                                  nova-declaracao.html?id=${
+                                    declaracao.id
+                                  }
+                                "
+                                class="
+                                  btn
+                                  btn-secondary
+                                  btn-sm
+                                "
+                              >
+                                Editar
+                              </a>
+
+
+                              <button
+                                class="
+                                  btn
+                                  btn-danger
+                                  btn-sm
+                                "
+                                onclick="
+                                  DeclaracoesPage.excluir(
+                                    '${declaracao.id}'
+                                  )
+                                "
+                              >
+                                Excluir
+                              </button>
+
+                            </td>
+
+                          </tr>
+
+                        `;
+
+                      }
+                    ).join("")}
 
                   </tbody>
 
@@ -803,7 +782,6 @@ const DeclaracoesPage = {
               </div>
 
               `
-
           }
 
         </div>
@@ -812,16 +790,15 @@ const DeclaracoesPage = {
 
       );
 
-    } catch (
-      erro
-    ) {
+    } catch (erro) {
 
       console.error(
+        "Erro ao carregar declarações:",
         erro
       );
 
       App.toast(
-        "Erro ao carregar declarações.",
+        "Erro ao carregar as declarações.",
         "danger"
       );
 
@@ -834,7 +811,7 @@ const DeclaracoesPage = {
 
     if (
       !confirm(
-        "Deseja excluir esta declaração?"
+        "Tem certeza que deseja excluir esta declaração?"
       )
     ) {
 
@@ -846,7 +823,7 @@ const DeclaracoesPage = {
     try {
 
       const declaracao =
-        await carregarDeclaracao(
+        await buscarDeclaracaoPorId(
           id
         );
 
@@ -855,7 +832,7 @@ const DeclaracoesPage = {
         declaracao?.arquivo_url
       ) {
 
-        await excluirArquivo(
+        await excluirArquivoDeclaracao(
           declaracao.arquivo_url
         );
 
@@ -865,7 +842,8 @@ const DeclaracoesPage = {
       const resposta =
         await fetch(
 
-          `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}`,
+          `${DECL_REST_URL}/declaracoes` +
+          `?id=eq.${encodeURIComponent(id)}`,
 
           {
 
@@ -873,8 +851,7 @@ const DeclaracoesPage = {
               "DELETE",
 
             headers:
-              supabaseHeaders()
-
+              declaracoesHeaders()
           }
 
         );
@@ -898,16 +875,15 @@ const DeclaracoesPage = {
 
       await this.init();
 
-    } catch (
-      erro
-    ) {
+    } catch (erro) {
 
       console.error(
         erro
       );
 
       App.toast(
-        "Erro ao excluir declaração.",
+        "Erro ao excluir: " +
+        erro.message,
         "danger"
       );
 
@@ -919,7 +895,7 @@ const DeclaracoesPage = {
 
 
 /* =====================================================
-   NOVA / EDITAR DECLARAÇÃO
+   NOVA DECLARAÇÃO
 ===================================================== */
 
 const NovaDeclaracaoPage = {
@@ -936,13 +912,15 @@ const NovaDeclaracaoPage = {
 
 
     const id =
-      parametros.get("id");
+      parametros.get(
+        "id"
+      );
 
 
     try {
 
       this.funcionarios =
-        await carregarFuncionarios();
+        await buscarFuncionariosDeclaracao();
 
 
       let declaracao =
@@ -952,7 +930,7 @@ const NovaDeclaracaoPage = {
       if (id) {
 
         declaracao =
-          await carregarDeclaracao(
+          await buscarDeclaracaoPorId(
             id
           );
 
@@ -982,19 +960,21 @@ const NovaDeclaracaoPage = {
             class="form"
           >
 
+
             <div class="grid-2">
+
 
               <div class="field">
 
                 <label
-                  for="funcionario"
+                  for="funcionarioDeclaracao"
                 >
                   Funcionário *
                 </label>
 
 
                 <select
-                  id="funcionario"
+                  id="funcionarioDeclaracao"
                   class="input"
                   required
                 >
@@ -1004,71 +984,62 @@ const NovaDeclaracaoPage = {
                   </option>
 
 
-                  ${
+                  ${this.funcionarios.map(
+                    funcionario => {
 
-                    this.funcionarios
-
-                      .map(
-
-                        funcionario => {
-
-                          const idFuncionario =
-                            Number(
-                              funcionario.id
-                            );
+                      const fid =
+                        Number(
+                          funcionario.id
+                        );
 
 
-                          if (
-                            !Number.isInteger(
-                              idFuncionario
-                            )
-                          ) {
+                      if (
+                        !Number.isInteger(fid) ||
+                        fid <= 0
+                      ) {
 
-                            return "";
+                        return "";
 
-                          }
-
-
-                          const selecionado =
-
-                            editando &&
-
-                            Number(
-                              declaracao.funcionario_id
-                            ) ===
-                            idFuncionario
-
-                              ? "selected"
-
-                              : "";
+                      }
 
 
-                          return `
+                      const selecionado =
 
-                            <option
-                              value="${idFuncionario}"
-                              ${selecionado}
-                            >
+                        editando &&
 
-                              ${esc(
-                                funcionario.nome_completo
-                              )}
+                        Number(
+                          declaracao.funcionario_id
+                        ) === fid
 
-                              —
-                              ${esc(
-                                funcionario.matricula || ""
-                              )}
+                          ? "selected"
 
-                            </option>
+                          : "";
 
-                          `;
 
-                        }
+                      return `
 
-                      )
-                      .join("")
+                        <option
+                          value="${fid}"
+                          ${selecionado}
+                        >
 
-                  }
+                          ${escaparDeclaracao(
+                            funcionario.nome_completo
+                          )}
+
+                          —
+
+                          ${escaparDeclaracao(
+                            funcionario.matricula ||
+                            ""
+                          )}
+
+                        </option>
+
+                      `;
+
+                    }
+                  ).join("")}
 
                 </select>
 
@@ -1077,15 +1048,13 @@ const NovaDeclaracaoPage = {
 
               <div class="field">
 
-                <label
-                  for="tipo"
-                >
+                <label for="tipoDeclaracao">
                   Tipo de declaração *
                 </label>
 
 
                 <select
-                  id="tipo"
+                  id="tipoDeclaracao"
                   class="input"
                   required
                 >
@@ -1122,26 +1091,22 @@ const NovaDeclaracaoPage = {
             </div>
 
 
-            <div
-              id="campos"
-            ></div>
+            <div id="camposDeclaracao"></div>
 
 
             <div class="field">
 
-              <label
-                for="observacoes"
-              >
+              <label for="observacoesDeclaracao">
                 Observações
               </label>
 
 
               <textarea
-                id="observacoes"
+                id="observacoesDeclaracao"
                 class="input"
                 rows="3"
                 placeholder="Informações adicionais..."
-              >${esc(
+              >${escaparDeclaracao(
                 declaracao?.observacoes ||
                 declaracao?.descricao ||
                 ""
@@ -1152,9 +1117,7 @@ const NovaDeclaracaoPage = {
 
             <div class="field">
 
-              <label
-                for="arquivo"
-              >
+              <label for="arquivoDeclaracao">
 
                 ${
                   editando
@@ -1167,7 +1130,7 @@ const NovaDeclaracaoPage = {
 
               <input
                 type="file"
-                id="arquivo"
+                id="arquivoDeclaracao"
                 class="input-file"
                 accept=".pdf,.jpg,.jpeg,.png"
               >
@@ -1181,7 +1144,8 @@ const NovaDeclaracaoPage = {
                 "
               >
 
-                PDF, JPG, JPEG ou PNG.
+                Formatos aceitos:
+                PDF, JPG, JPEG e PNG.
                 Máximo: 10MB.
 
               </small>
@@ -1247,30 +1211,29 @@ const NovaDeclaracaoPage = {
 
             </div>
 
+
           </form>
 
         </div>
 
         `
-
       );
 
 
-      this.configurarCampos(
+      this.configurarFormulario(
         declaracao
       );
 
 
-    } catch (
-      erro
-    ) {
+    } catch (erro) {
 
       console.error(
+        "Erro ao carregar formulário:",
         erro
       );
 
       App.toast(
-        "Erro ao abrir declaração.",
+        "Erro ao carregar o formulário.",
         "danger"
       );
 
@@ -1279,194 +1242,209 @@ const NovaDeclaracaoPage = {
   },
 
 
-  configurarCampos(
+  configurarFormulario(
     declaracao
   ) {
 
     const tipo =
       document.getElementById(
-        "tipo"
+        "tipoDeclaracao"
       );
+
 
     const campos =
       document.getElementById(
-        "campos"
+        "camposDeclaracao"
       );
 
 
-    function renderizar() {
-
-      if (
-        tipo.value === "horas"
-      ) {
-
-        campos.innerHTML = `
-
-          <div class="field">
-
-            <label for="data">
-              Data *
-            </label>
-
-            <input
-              type="date"
-              id="data"
-              class="input"
-              value="${declaracao?.data || ""}"
-              required
-            >
-
-          </div>
+    const renderizar =
+      () => {
 
 
-          <div class="field">
+        if (
+          tipo.value === "horas"
+        ) {
 
-            <label for="horaInicial">
-              Horário inicial
-            </label>
+          campos.innerHTML = `
 
-            <input
-              type="time"
-              id="horaInicial"
-              class="input"
-              value="${declaracao?.hora_inicial || ""}"
-            >
+            <div class="field">
 
-          </div>
+              <label for="dataDeclaracao">
+                Data *
+              </label>
 
+              <input
+                type="date"
+                id="dataDeclaracao"
+                class="input"
+                value="${
+                  declaracao?.data ||
+                  ""
+                }"
+                required
+              >
 
-          <div class="field">
-
-            <label for="horaFinal">
-              Horário final
-            </label>
-
-            <input
-              type="time"
-              id="horaFinal"
-              class="input"
-              value="${declaracao?.hora_final || ""}"
-            >
-
-          </div>
+            </div>
 
 
-          <div class="field">
+            <div class="field">
 
-            <label for="quantidadeHoras">
-              Quantidade de horas
-            </label>
+              <label for="horaInicialDeclaracao">
+                Horário inicial
+              </label>
 
-            <input
-              type="number"
-              id="quantidadeHoras"
-              class="input"
-              step="0.5"
-              min="0"
-              value="${
-                declaracao?.quantidade_horas ??
-                ""
-              }"
-            >
+              <input
+                type="time"
+                id="horaInicialDeclaracao"
+                class="input"
+                value="${
+                  declaracao?.hora_inicial ||
+                  ""
+                }"
+              >
 
-          </div>
-
-        `;
-
-      } else {
-
-        campos.innerHTML = `
-
-          <div class="field">
-
-            <label for="dataInicial">
-              Data inicial *
-            </label>
-
-            <input
-              type="date"
-              id="dataInicial"
-              class="input"
-              value="${
-                declaracao?.data_inicio ||
-                declaracao?.data_inicial ||
-                declaracao?.data ||
-                ""
-              }"
-              required
-            >
-
-          </div>
+            </div>
 
 
-          <div class="field">
+            <div class="field">
 
-            <label for="dataFinal">
-              Data final
-            </label>
+              <label for="horaFinalDeclaracao">
+                Horário final
+              </label>
 
-            <input
-              type="date"
-              id="dataFinal"
-              class="input"
-              value="${
-                declaracao?.data_fim ||
-                declaracao?.data_final ||
-                ""
-              }"
-            >
+              <input
+                type="time"
+                id="horaFinalDeclaracao"
+                class="input"
+                value="${
+                  declaracao?.hora_final ||
+                  ""
+                }"
+              >
 
-          </div>
-
-
-          <div class="field">
-
-            <label for="quantidadeDias">
-              Quantidade de dias
-            </label>
-
-            <input
-              type="number"
-              id="quantidadeDias"
-              class="input"
-              min="1"
-              step="1"
-              value="${
-                declaracao?.quantidade_dias ??
-                ""
-              }"
-            >
-
-          </div>
-
-        `;
-
-      }
+            </div>
 
 
-      const campoData =
-        document.getElementById(
-          "data"
-        ) ||
+            <div class="field">
 
-        document.getElementById(
-          "dataInicial"
-        );
+              <label for="quantidadeHorasDeclaracao">
+                Quantidade de horas
+              </label>
+
+              <input
+                type="number"
+                id="quantidadeHorasDeclaracao"
+                class="input"
+                min="0"
+                step="0.5"
+                value="${
+                  declaracao?.quantidade_horas ??
+                  ""
+                }"
+              >
+
+            </div>
+
+          `;
+
+        } else {
+
+          campos.innerHTML = `
+
+            <div class="field">
+
+              <label for="dataInicialDeclaracao">
+                Data inicial *
+              </label>
+
+              <input
+                type="date"
+                id="dataInicialDeclaracao"
+                class="input"
+                value="${
+                  declaracao?.data_inicio ||
+                  declaracao?.data_inicial ||
+                  declaracao?.data ||
+                  ""
+                }"
+                required
+              >
+
+            </div>
 
 
-      if (
-        campoData &&
-        !campoData.value
-      ) {
+            <div class="field">
 
-        campoData.value =
-          new Date()
-            .toISOString()
-            .slice(0, 10);
+              <label for="dataFinalDeclaracao">
+                Data final
+              </label>
 
-      }
+              <input
+                type="date"
+                id="dataFinalDeclaracao"
+                class="input"
+                value="${
+                  declaracao?.data_fim ||
+                  declaracao?.data_final ||
+                  ""
+                }"
+              >
 
-    }
+            </div>
+
+
+            <div class="field">
+
+              <label for="quantidadeDiasDeclaracao">
+                Quantidade de dias
+              </label>
+
+              <input
+                type="number"
+                id="quantidadeDiasDeclaracao"
+                class="input"
+                min="1"
+                step="1"
+                value="${
+                  declaracao?.quantidade_dias ??
+                  ""
+                }"
+              >
+
+            </div>
+
+          `;
+
+        }
+
+
+        const campoData =
+
+          document.getElementById(
+            "dataDeclaracao"
+          )
+
+          ||
+
+          document.getElementById(
+            "dataInicialDeclaracao"
+          );
+
+
+        if (
+          campoData &&
+          !campoData.value
+        ) {
+
+          campoData.value =
+            new Date()
+              .toISOString()
+              .slice(0, 10);
+
+        }
+
+      };
 
 
     tipo.addEventListener(
@@ -1483,22 +1461,19 @@ const NovaDeclaracaoPage = {
         "formDeclaracao"
       )
       .addEventListener(
-
         "submit",
-
         evento =>
           this.salvar(
             evento,
             declaracao
           )
-
       );
 
   },
 
 
   /* ===================================================
-     SALVAR DECLARAÇÃO
+     SALVAR
   =================================================== */
 
   async salvar(
@@ -1509,22 +1484,21 @@ const NovaDeclaracaoPage = {
     evento.preventDefault();
 
 
-    const funcionarioSelect =
+    const select =
       document.getElementById(
-        "funcionario"
+        "funcionarioDeclaracao"
       );
 
 
     /*
-      AQUI ESTÁ A CORREÇÃO PRINCIPAL.
-
-      Pegamos DIRETAMENTE o value do select
-      e convertemos para número.
+      CORREÇÃO PRINCIPAL:
+      pega DIRETAMENTE o ID numérico
+      da tabela funcionarios.
     */
 
     const funcionarioId =
       Number(
-        funcionarioSelect.value
+        select.value
       );
 
 
@@ -1536,18 +1510,13 @@ const NovaDeclaracaoPage = {
     ) {
 
       App.toast(
-
         "Selecione um funcionário válido.",
-
         "danger"
-
       );
 
       console.error(
-
-        "ID recebido:",
-        funcionarioSelect.value
-
+        "ID do funcionário:",
+        select.value
       );
 
       return;
@@ -1557,19 +1526,19 @@ const NovaDeclaracaoPage = {
 
     const tipo =
       document.getElementById(
-        "tipo"
+        "tipoDeclaracao"
       ).value;
 
 
     const observacoes =
       document.getElementById(
-        "observacoes"
+        "observacoesDeclaracao"
       ).value || "";
 
 
     const arquivoInput =
       document.getElementById(
-        "arquivo"
+        "arquivoDeclaracao"
       );
 
 
@@ -1589,8 +1558,9 @@ const NovaDeclaracaoPage = {
 
     try {
 
+
       /*
-        Mantém anexo antigo
+        Mantém os dados do anexo antigo.
       */
 
       let arquivoUrl =
@@ -1615,9 +1585,13 @@ const NovaDeclaracaoPage = {
         );
 
 
+      const arquivoAntigo =
+        declaracaoAntiga?.arquivo_url ||
+        null;
+
+
       /*
-        Se selecionou novo arquivo,
-        envia primeiro para o Storage.
+        UPLOAD DO NOVO ARQUIVO
       */
 
       if (
@@ -1635,7 +1609,7 @@ const NovaDeclaracaoPage = {
 
 
         const resultado =
-          await uploadArquivo(
+          await uploadArquivoDeclaracao(
 
             arquivoInput.files[0]
 
@@ -1661,8 +1635,7 @@ const NovaDeclaracaoPage = {
 
 
       /*
-        Montagem dos dados exatamente
-        com os nomes da tabela.
+        OBJETO FINAL PARA O SUPABASE
       */
 
       const dados = {
@@ -1722,7 +1695,7 @@ const NovaDeclaracaoPage = {
 
 
       /*
-        HORAS
+        DECLARAÇÃO DE HORAS
       */
 
       if (
@@ -1731,26 +1704,28 @@ const NovaDeclaracaoPage = {
 
         dados.data =
           document.getElementById(
-            "data"
+            "dataDeclaracao"
           ).value;
 
 
         dados.hora_inicial =
           document.getElementById(
-            "horaInicial"
-          ).value || null;
+            "horaInicialDeclaracao"
+          ).value ||
+          null;
 
 
         dados.hora_final =
           document.getElementById(
-            "horaFinal"
-          ).value || null;
+            "horaFinalDeclaracao"
+          ).value ||
+          null;
 
 
         dados.quantidade_horas =
           Number(
             document.getElementById(
-              "quantidadeHoras"
+              "quantidadeHorasDeclaracao"
             ).value
           ) || 0;
 
@@ -1758,20 +1733,20 @@ const NovaDeclaracaoPage = {
 
 
       /*
-        DIAS
+        DECLARAÇÃO DE DIAS
       */
 
       else {
 
         const dataInicial =
           document.getElementById(
-            "dataInicial"
+            "dataInicialDeclaracao"
           ).value;
 
 
         const dataFinal =
           document.getElementById(
-            "dataFinal"
+            "dataFinalDeclaracao"
           ).value ||
           dataInicial;
 
@@ -1799,7 +1774,7 @@ const NovaDeclaracaoPage = {
         dados.quantidade_dias =
           Number(
             document.getElementById(
-              "quantidadeDias"
+              "quantidadeDiasDeclaracao"
             ).value
           ) || 1;
 
@@ -1807,7 +1782,7 @@ const NovaDeclaracaoPage = {
 
 
       console.log(
-        "DADOS QUE SERÃO ENVIADOS:",
+        "DADOS DA DECLARAÇÃO:",
         dados
       );
 
@@ -1817,7 +1792,7 @@ const NovaDeclaracaoPage = {
 
 
       /*
-        NOVA DECLARAÇÃO
+        CRIAR
       */
 
       if (
@@ -1827,7 +1802,7 @@ const NovaDeclaracaoPage = {
         const resposta =
           await fetch(
 
-            `${REST_URL}/declaracoes`,
+            `${DECL_REST_URL}/declaracoes`,
 
             {
 
@@ -1835,7 +1810,7 @@ const NovaDeclaracaoPage = {
                 "POST",
 
               headers:
-                supabaseHeaders({
+                declaracoesHeaders({
 
                   Prefer:
                     "return=representation"
@@ -1856,23 +1831,17 @@ const NovaDeclaracaoPage = {
           !resposta.ok
         ) {
 
-          const erro =
-            await resposta.text();
-
-
           /*
-            Se o banco rejeitou,
-            e já enviamos o arquivo,
-            tenta excluir o arquivo
-            para não deixar lixo.
+            Se o banco rejeitar,
+            excluímos o arquivo que
+            acabou de ser enviado.
           */
 
           if (
-            arquivoUrl &&
-            !declaracaoAntiga
+            arquivoUrl
           ) {
 
-            await excluirArquivo(
+            await excluirArquivoDeclaracao(
               arquivoUrl
             );
 
@@ -1880,7 +1849,7 @@ const NovaDeclaracaoPage = {
 
 
           throw new Error(
-            erro
+            await resposta.text()
           );
 
         }
@@ -1889,19 +1858,18 @@ const NovaDeclaracaoPage = {
 
 
       /*
-        EDITAR DECLARAÇÃO
+        EDITAR
       */
 
       else {
 
-        const id =
-          declaracaoAntiga.id;
-
-
         const resposta =
           await fetch(
 
-            `${REST_URL}/declaracoes?id=eq.${encodeURIComponent(id)}`,
+            `${DECL_REST_URL}/declaracoes` +
+            `?id=eq.${encodeURIComponent(
+              declaracaoAntiga.id
+            )}`,
 
             {
 
@@ -1909,7 +1877,7 @@ const NovaDeclaracaoPage = {
                 "PATCH",
 
               headers:
-                supabaseHeaders({
+                declaracoesHeaders({
 
                   Prefer:
                     "return=representation"
@@ -1938,23 +1906,21 @@ const NovaDeclaracaoPage = {
 
 
         /*
-          Se substituiu o arquivo,
-          exclui o antigo.
+          Se trocou o arquivo,
+          apaga o arquivo antigo.
         */
 
         if (
 
-          declaracaoAntiga.arquivo_url &&
+          arquivoAntigo &&
 
-          declaracaoAntiga.arquivo_url !==
+          arquivoAntigo !==
             arquivoUrl
 
         ) {
 
-          await excluirArquivo(
-
-            declaracaoAntiga.arquivo_url
-
+          await excluirArquivoDeclaracao(
+            arquivoAntigo
           );
 
         }
@@ -1974,25 +1940,20 @@ const NovaDeclaracaoPage = {
 
 
       setTimeout(
-
         () => {
 
           window.location.href =
             "declaracoes.html";
 
         },
-
         800
-
       );
 
 
-    } catch (
-      erro
-    ) {
+    } catch (erro) {
 
       console.error(
-        "ERRO AO SALVAR:",
+        "ERRO AO SALVAR DECLARAÇÃO:",
         erro
       );
 
@@ -2006,7 +1967,6 @@ const NovaDeclaracaoPage = {
         ),
 
         "danger"
-
       );
 
 
