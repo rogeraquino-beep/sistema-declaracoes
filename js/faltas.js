@@ -188,8 +188,8 @@ const FaltasPage = {
     const btn = e.target.querySelector('button[type="submit"]');
     btn.disabled = true;
 
-    // Envia estritamente os quatro campos presentes na tabela
-    const payload = {
+    // Payload restrito e purificado apenas com as colunas reais da tabela
+    const cleanPayload = {
       funcionario_id: String(funcId),
       data_falta: dataVal,
       motivo: motivoVal,
@@ -197,7 +197,23 @@ const FaltasPage = {
     };
 
     try {
-      await App.add("faltas", payload);
+      // Chamada direta via REST bypassando qualquer interceptação no App.add
+      const res = await fetch(`${App.supabaseUrl}/rest/v1/faltas`, {
+        method: "POST",
+        headers: {
+          "apikey": App.supabaseKey,
+          "Authorization": `Bearer ${App.supabaseKey}`,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify(cleanPayload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Erro de requisição REST");
+      }
+
       App.toast("Falta registrada com sucesso!");
       this.closeModal();
       this.init();
