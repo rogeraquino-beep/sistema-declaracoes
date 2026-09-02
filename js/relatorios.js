@@ -13,41 +13,114 @@ const RelatoriosPage = {
     };
 
     App.layout("Relatórios", "Análise consolidada das declarações", `
-      <div class="page-header">
+      <style>
+        .filter-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          margin-bottom: 24px;
+        }
+        .filter-grid {
+          display: grid;
+          grid-template-columns: 2fr 1.5fr 1fr 1fr;
+          gap: 16px;
+          align-items: flex-end;
+        }
+        @media (max-width: 992px) {
+          .filter-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 576px) {
+          .filter-grid { grid-template-columns: 1fr; }
+        }
+        .filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .filter-label {
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          margin: 0;
+        }
+        .filter-control {
+          width: 100%;
+          height: 42px;
+          padding: 8px 12px;
+          font-size: 14px;
+          color: #1f2937;
+          background-color: #f9fafb;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          outline: none;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+        }
+        .filter-control:focus {
+          background-color: #ffffff;
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .stat-card-custom {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .stat-card-custom .stat-label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #6b7280;
+          margin-bottom: 6px;
+        }
+        .stat-card-custom .stat-value {
+          font-size: 24px;
+          font-weight: 700;
+          color: #111827;
+        }
+      </style>
+
+      <div class="page-header" style="margin-bottom: 24px;">
         <div>
-          <h2>Relatórios</h2>
-          <p>Filtre os lançamentos e gere um resumo para impressão ou CSV.</p>
+          <h2 style="margin: 0; font-size: 24px; color: #111827;">Relatórios</h2>
+          <p style="margin: 4px 0 0; color: #6b7280; font-size: 14px;">Filtre os lançamentos e gere um resumo para impressão ou CSV.</p>
         </div>
-        <div class="actions no-print">
+        <div class="actions no-print" style="display: flex; gap: 10px;">
           <button class="btn btn-secondary" id="btnImprimir">🖨 Imprimir relatório</button>
           <button class="btn btn-primary" id="btnExportar">⬇ Exportar CSV</button>
         </div>
       </div>
 
-      <div class="card panel no-print mb-4">
-        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
-          <div class="form-group" style="flex: 1 1 200px; margin-bottom: 0;">
-            <label class="form-label">Funcionário</label>
-            <select class="form-control" id="filtroFuncionario">
+      <div class="filter-card no-print">
+        <div class="filter-grid">
+          <div class="filter-group">
+            <label class="filter-label">Funcionário</label>
+            <select class="filter-control" id="filtroFuncionario">
               <option value="todos">Todos os funcionários</option>
               ${funcs.map(f => `<option value="${f.id}">${App.escapeHTML(f.nome)}</option>`).join("")}
             </select>
           </div>
-          <div class="form-group" style="flex: 1 1 180px; margin-bottom: 0;">
-            <label class="form-label">Tipo de Declaração</label>
-            <select class="form-control" id="filtroTipo">
+          <div class="filter-group">
+            <label class="filter-label">Tipo de Declaração</label>
+            <select class="filter-control" id="filtroTipo">
               <option value="todos">Todos os tipos</option>
               <option value="horas">Horas</option>
               <option value="dias">Dias</option>
             </select>
           </div>
-          <div class="form-group" style="flex: 1 1 150px; margin-bottom: 0;">
-            <label class="form-label">Data inicial</label>
-            <input type="date" class="form-control" id="filtroInicio">
+          <div class="filter-group">
+            <label class="filter-label">Data inicial</label>
+            <input type="date" class="filter-control" id="filtroInicio">
           </div>
-          <div class="form-group" style="flex: 1 1 150px; margin-bottom: 0;">
-            <label class="form-label">Data final</label>
-            <input type="date" class="form-control" id="filtroFim">
+          <div class="filter-group">
+            <label class="filter-label">Data final</label>
+            <input type="date" class="filter-control" id="filtroFim">
           </div>
         </div>
       </div>
@@ -104,26 +177,26 @@ const RelatoriosPage = {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="cards mb-4">
-        <div class="card stat-card">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="stat-card-custom">
           <div>
             <div class="stat-label">Total de declarações</div>
             <div class="stat-value">${filtered.length}</div>
           </div>
         </div>
-        <div class="card stat-card">
+        <div class="stat-card-custom">
           <div>
             <div class="stat-label">Total de horas</div>
             <div class="stat-value">${totalHoras} h</div>
           </div>
         </div>
-        <div class="card stat-card">
+        <div class="stat-card-custom">
           <div>
             <div class="stat-label">Total de dias</div>
             <div class="stat-value">${totalDias} dia(s)</div>
           </div>
         </div>
-        <div class="card stat-card">
+        <div class="stat-card-custom">
           <div>
             <div class="stat-label">Funcionários com declarações</div>
             <div class="stat-value">${funcsUnicos}</div>
@@ -132,8 +205,8 @@ const RelatoriosPage = {
       </div>
 
       <div class="card panel">
-        <div class="panel-header">
-          <h3>Detalhamento</h3>
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0; font-size: 18px;">Detalhamento</h3>
           <span class="badge badge-hours">${filtered.length} registro(s)</span>
         </div>
         ${
