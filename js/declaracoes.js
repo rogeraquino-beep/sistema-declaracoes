@@ -273,6 +273,8 @@ async function buscarFuncionariosDeclaracao() {
 
 /* =====================================================
    BUSCAR DECLARAÇÕES
+   ORDEM POR DATA/PERÍODO
+   MAIS RECENTES PRIMEIRO
 ===================================================== */
 
 async function buscarTodasDeclaracoes() {
@@ -281,7 +283,7 @@ async function buscarTodasDeclaracoes() {
     await fetch(
       `${DECL_REST_URL}/declaracoes` +
       `?select=*` +
-      `&order=id.desc`,
+      `&order=data.desc.nullslast`,
       {
         headers:
           declaracoesHeaders()
