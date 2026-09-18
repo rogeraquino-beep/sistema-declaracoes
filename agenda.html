@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <meta
+    name="description"
+    content="Agenda da Escola - Sistema de Gestão"
+  >
+
+  <title>
+    Agenda | Sistema de Declarações
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="css/style.css?v=500"
+  >
+
+</head>
+
+
+<body data-page="agenda">
+
+
+  <div id="app"></div>
+
+
+  <script src="js/app.js?v=500"></script>
+
+  <script src="js/agenda.js?v=500"></script>
+
+
+  <script>
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+
+        if (
+          typeof AgendaPage !== "undefined"
+        ) {
+
+          AgendaPage.init();
+
+        } else {
+
+          console.error(
+            "AgendaPage não foi encontrada em js/agenda.js"
+          );
+
+        }
+
+      }
+    );
+
+  </script>
+
+
+</body>
+
+</html>
